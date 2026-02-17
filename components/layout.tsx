@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Load fonts
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
+const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Raghavendra | Full Stack Developer",
-  description: "Portfolio of a Computer Science student at BITS Pilani & Scaler.",
+  title: {
+    template: "%s | Raghavendra Portfolio",
+    default: "Raghavendra | Backend Engineer & Student",
+  },
+  description: "Portfolio of Raghavendra, a Computer Science student at BITS Pilani & Scaler School of Technology.",
+  keywords: ["Raghavendra", "Portfolio", "Backend Engineer", "Next.js", "BITS Pilani", "Scaler"],
 };
 
 export default function RootLayout({
@@ -25,17 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}>
-        {/* Navbar sits at the top */}
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="flex flex-col min-h-screen font-sans antialiased text-gray-900 bg-white">
         <Navbar />
-        
-        {/* Main content grows to fill space */}
-        <main className="flex-grow">
+        {/* We add padding-top to body content so it isn't hidden behind the fixed Navbar */}
+        <div className="flex-1 pt-16">
           {children}
-        </main>
-        
-        {/* Footer sits at the bottom */}
+        </div>
         <Footer />
       </body>
     </html>

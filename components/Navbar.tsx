@@ -1,71 +1,76 @@
-"use client"; // Required for state (mobile menu)
+"use client";
 
-import Link from "next/link";
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
-const navLinks = [
-  { name: "Home", href: "/" },
-  { name: "Projects", href: "/projects" },
-  { name: "About", href: "/about" },
-  // We will build the Admin UI later, keeping it hidden or minimal for now
+const NAV_ITEMS = [
+  { label: 'Home', href: '/' },
+  { label: 'About', href: '/about' },
+  { label: 'Projects', href: '/projects' },
 ];
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+    <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+        
         {/* Logo */}
-        <Link href="/" className="text-xl font-bold tracking-tight text-blue-600">
-          Raghavendra<span className="text-black">.dev</span>
+        <Link href="/" className="font-bold text-xl tracking-tight">
+          Raghavendra<span className="text-blue-600">.</span>
         </Link>
 
         {/* Desktop Nav */}
-        <div className="hidden md:flex gap-8">
-          {navLinks.map((link) => (
-            <Link
-              key={link.name}
-              href={link.href}
-              className={`text-sm font-medium transition-colors hover:text-blue-600 ${
-                pathname === link.href ? "text-blue-600" : "text-gray-600"
-              }`}
-            >
-              {link.name}
-            </Link>
-          ))}
-        </div>
+        <nav className="hidden md:flex gap-8">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`text-sm font-medium transition-colors ${
+                  isActive ? 'text-blue-600' : 'text-gray-600 hover:text-black'
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Mobile Menu Button */}
-        <button
+        <button 
           className="md:hidden p-2 text-gray-600"
           onClick={() => setIsOpen(!isOpen)}
         >
-          {isOpen ? "✕" : "☰"}
+          {isOpen ? (
+            <span className="text-2xl">×</span>
+          ) : (
+            <span className="text-xl">☰</span>
+          )}
         </button>
       </div>
 
       {/* Mobile Nav Dropdown */}
       {isOpen && (
-        <div className="md:hidden border-t bg-white px-6 py-4 shadow-lg">
-          <div className="flex flex-col gap-4">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setIsOpen(false)}
-                className={`text-sm font-medium transition-colors ${
-                  pathname === link.href ? "text-blue-600" : "text-gray-600"
-                }`}
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
+        <div className="md:hidden absolute top-16 left-0 w-full bg-white border-b shadow-lg p-4 flex flex-col gap-4">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setIsOpen(false)}
+              className={`text-sm font-medium p-2 rounded ${
+                pathname === item.href ? 'bg-blue-50 text-blue-600' : 'text-gray-600'
+              }`}
+            >
+              {item.label}
+            </Link>
+          ))}
         </div>
       )}
-    </nav>
+    </header>
   );
 }
