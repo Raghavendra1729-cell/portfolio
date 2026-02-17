@@ -1,8 +1,8 @@
 import mongoose, { Schema, model, models } from 'mongoose';
 
 const EducationSchema = new Schema({
-  degree: { type: String, required: true }, // e.g. B.Tech CS
-  institution: { type: String, required: true }, // e.g. BITS Pilani
+  degree: { type: String, required: true }, 
+  institution: { type: String, required: true }, 
   startDate: String,
   endDate: String,
   
