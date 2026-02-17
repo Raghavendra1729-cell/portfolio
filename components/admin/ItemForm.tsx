@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import FileUpload from "./FileUpload";
 
 interface ItemFormProps {
   initialData?: any;
@@ -28,6 +29,24 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
+  };
+
+  // Handle single image upload (for logo, profile pic, etc.)
+  const handleImageUpload = (url: string, field: string) => {
+    setFormData({ ...formData, [field]: url });
+  };
+
+  // Handle multiple image uploads (for galleries)
+  const handleMultipleImageUpload = (url: string, field: string) => {
+    const currentImages = formData[field] || [];
+    setFormData({ ...formData, [field]: [...currentImages, url] });
+  };
+
+  // Remove image from array
+  const handleRemoveImage = (index: number, field: string) => {
+    const currentImages = formData[field] || [];
+    const updatedImages = currentImages.filter((_: any, i: number) => i !== index);
+    setFormData({ ...formData, [field]: updatedImages });
   };
 
   // RENDER HELPERS
@@ -94,6 +113,41 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
             {renderInput("Live Link", "link", "url")}
             {renderInput("GitHub Repo", "repo", "url")}
           </div>
+
+          {/* Image Gallery Upload */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Project Images (Gallery)
+            </label>
+            
+            {/* Display existing images */}
+            {formData.images && formData.images.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                {formData.images.map((url: string, index: number) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={url} 
+                      alt={`Project ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index, "images")}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Add new image */}
+            <FileUpload 
+              label="Add Image"
+              onUpload={(url) => handleMultipleImageUpload(url, "images")}
+            />
+          </div>
         </>
       )}
 
@@ -111,6 +165,13 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
           {renderInput("Location", "location")}
           {renderArrayInput("Description Points", "description", "- Built a feature...\n- Optimized API...")}
           {renderArrayInput("Technologies Used", "technologies", "React\nNode.js")}
+          
+          {/* Company Logo Upload */}
+          <FileUpload 
+            label="Company Logo"
+            initialUrl={formData.logo}
+            onUpload={(url) => handleImageUpload(url, "logo")}
+          />
         </>
       )}
 
@@ -130,6 +191,41 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
           {renderInput("Date", "date")}
           {renderTextArea("Description", "description")}
           {renderInput("Certificate Link", "link", "url")}
+          
+          {/* Achievement Images Upload */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Certificate / Award Images
+            </label>
+            
+            {/* Display existing images */}
+            {formData.images && formData.images.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
+                {formData.images.map((url: string, index: number) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={url} 
+                      alt={`Achievement ${index + 1}`}
+                      className="w-full h-32 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImage(index, "images")}
+                      className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Add new image */}
+            <FileUpload 
+              label="Add Image"
+              onUpload={(url) => handleMultipleImageUpload(url, "images")}
+            />
+          </div>
         </>
       )}
 
