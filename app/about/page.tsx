@@ -19,41 +19,78 @@ export default async function AboutPage() {
           <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-indigo-500/10 blur-[100px]" />
           <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-[100px]" />
 
-          <div className="relative">
-            <span className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-300 border border-indigo-500/20">
-              <User className="w-3 h-3" /> About
-            </span>
-            <h1 className="mt-6 text-4xl md:text-5xl font-bold tracking-tight text-white">
-              Raghavendra, the engineer behind the{" "}
-              <span className="gradient-text">systems</span>.
-            </h1>
-            <div className="mt-6 text-base md:text-lg text-slate-400 leading-relaxed space-y-4">
-              <p>
-                I am a Computer Science student currently pursuing a dual degree
-                program at{" "}
-                <strong className="text-white">BITS Pilani</strong> and{" "}
-                <strong className="text-white">
-                  Scaler School of Technology
-                </strong>
-                .
-              </p>
-              <p>
-                My passion lies in{" "}
-                <strong className="text-indigo-300">
-                  Distributed Systems
-                </strong>
-                ,{" "}
-                <strong className="text-indigo-300">
-                  Backend Engineering
-                </strong>
-                , and{" "}
-                <strong className="text-indigo-300">
-                  Artificial Intelligence
-                </strong>
-                . I enjoy deconstructing complex problems and building systems
-                that scale.
-              </p>
+          <div className="relative flex flex-col md:flex-row items-center md:items-start gap-12">
+            
+            {/* Text Content */}
+            <div className="flex-1">
+              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-300 border border-indigo-500/20">
+                <User className="w-3 h-3" /> About
+              </span>
+              <h1 className="mt-6 text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+                Raghavendra, the engineer behind the{" "}
+                <span className="gradient-text">systems</span>.
+              </h1>
+              <div className="mt-6 text-base md:text-lg text-slate-400 leading-relaxed space-y-4">
+                <p>
+                  I am a Computer Science student currently pursuing a dual degree
+                  program at{" "}
+                  <strong className="text-white">BITS Pilani</strong> and{" "}
+                  <strong className="text-white">
+                    Scaler School of Technology
+                  </strong>
+                  .
+                </p>
+                <p>
+                  My passion lies in{" "}
+                  <strong className="text-indigo-300">
+                    Distributed Systems
+                  </strong>
+                  ,{" "}
+                  <strong className="text-indigo-300">
+                    Backend Engineering
+                  </strong>
+                  , and{" "}
+                  <strong className="text-indigo-300">
+                    Artificial Intelligence
+                  </strong>
+                  . I enjoy deconstructing complex problems and building systems
+                  that scale.
+                </p>
+              </div>
             </div>
+
+            {/* Image Placeholder */}
+            <div className="w-full max-w-sm shrink-0">
+               <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/50 group">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  {/* Placeholder for User Image */}
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-500 gap-3">
+                     <User className="w-12 h-12 opacity-50" />
+                     <span className="text-sm font-medium uppercase tracking-widest">Profile Photo</span>
+                  </div>
+                  {/* <img src="/about-photo.jpg" alt="About Raghavendra" className="w-full h-full object-cover" /> */}
+               </div>
+               
+               {/* Optional Caption/Stats */}
+               <div className="flex justify-between items-center mt-4 px-2">
+                 <div className="text-center">
+                    <p className="text-2xl font-bold text-white">3+</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider">Years Coding</p>
+                 </div>
+                 <div className="h-8 w-px bg-white/10" />
+                 <div className="text-center">
+                    <p className="text-2xl font-bold text-white">10+</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider">Projects</p>
+                 </div>
+                 <div className="h-8 w-px bg-white/10" />
+                 <div className="text-center">
+                    <p className="text-2xl font-bold text-white">100%</p>
+                    <p className="text-xs text-slate-500 uppercase tracking-wider">Commitment</p>
+                 </div>
+               </div>
+            </div>
+
           </div>
         </RevealSection>
 

@@ -17,6 +17,48 @@ export default async function Home() {
     <main>
       <Hero />
 
+      {/* --- NEW: PROFILE & INFO SECTION --- */}
+      <RevealSection className="py-20 px-6">
+        <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-12">
+          {/* Image Placeholder */}
+          <div className="relative w-full max-w-sm shrink-0 group">
+            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-3xl blur-2xl opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+            <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/50 grayscale hover:grayscale-0 transition-all duration-500">
+               {/* Placeholder for User Image */}
+               <div className="w-full h-full flex items-center justify-center bg-slate-800 text-slate-500">
+                  <span className="text-sm font-medium uppercase tracking-widest">Your Image Here</span>
+               </div>
+               {/* <img src="/your-photo.jpg" alt="Profile" className="w-full h-full object-cover" /> */}
+            </div>
+          </div>
+
+          {/* Info Content */}
+          <div className="flex-1 space-y-6 text-center md:text-left">
+            <h2 className="text-3xl md:text-4xl font-bold text-white">
+              Building the <span className="gradient-text">Future</span> of Digital Interaction.
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              I'm a passionate engineer dedicated to creating systems that not only function flawlessly but also provide an immersive user experience. 
+              My work bridges the gap between complex backend logic and stunning frontend design.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center md:justify-start pt-2">
+              <Link 
+                href="/about"
+                className="px-6 py-3 rounded-full bg-white text-slate-900 font-bold hover:bg-indigo-50 transition-colors shadow-lg shadow-indigo-500/20"
+              >
+                More About Me
+              </Link>
+              <Link
+                href="/contact" 
+                className="px-6 py-3 rounded-full bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition-colors"
+                >
+                Get in Touch
+              </Link>
+            </div>
+          </div>
+        </div>
+      </RevealSection>
+
       {/* --- FEATURED PROJECTS --- */}
       <div id="projects">
         <RevealSection className="py-24 px-6">
