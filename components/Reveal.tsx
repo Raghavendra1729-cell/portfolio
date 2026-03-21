@@ -1,35 +1,77 @@
 "use client";
 
-import { motion, useInView, Variants } from "framer-motion";
-import { useRef, ReactNode } from "react";
+import { motion, type Variants, useReducedMotion } from "framer-motion";
+import { type ReactNode } from "react";
+
+type RevealVariant = "fade-up" | "fade-left" | "fade-right" | "scale";
 
 interface RevealProps {
   children: ReactNode;
   className?: string;
-  variant?: "fade-up" | "fade-left" | "fade-right" | "scale";
+  variant?: RevealVariant;
   delay?: number;
   stagger?: boolean;
   staggerDelay?: number;
 }
 
-const variants: Record<string, Variants> = {
-  "fade-up": {
-    hidden: { opacity: 0, y: 50 },
-    visible: { opacity: 1, y: 0 },
-  },
-  "fade-left": {
-    hidden: { opacity: 0, x: -50 },
-    visible: { opacity: 1, x: 0 },
-  },
-  "fade-right": {
-    hidden: { opacity: 0, x: 50 },
-    visible: { opacity: 1, x: 0 },
-  },
-  scale: {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: { opacity: 1, scale: 1 },
-  },
+const distanceMap: Record<RevealVariant, { x?: number; y?: number; scale?: number }> = {
+  "fade-up": { y: 28 },
+  "fade-left": { x: -32 },
+  "fade-right": { x: 32 },
+  scale: { y: 18, scale: 0.94 },
 };
+
+function createItemVariants(
+  variant: RevealVariant,
+  reducedMotion: boolean,
+  delay = 0,
+): Variants {
+  const offset = distanceMap[variant];
+
+  return {
+    hidden: reducedMotion
+      ? { opacity: 0 }
+      : {
+          opacity: 0,
+          x: offset.x ?? 0,
+          y: offset.y ?? 0,
+          scale: offset.scale ?? 1,
+          filter: "blur(10px)",
+        },
+    visible: {
+      opacity: 1,
+      x: 0,
+      y: 0,
+      scale: 1,
+      filter: "blur(0px)",
+      transition: reducedMotion
+        ? { duration: 0.2, delay }
+        : {
+            delay,
+            type: "spring",
+            stiffness: 118,
+            damping: 20,
+            mass: 0.8,
+            opacity: { duration: 0.34, ease: "easeOut" },
+            filter: { duration: 0.3, ease: "easeOut" },
+          },
+    },
+  };
+}
+
+function createContainerVariants(staggerDelay: number, delay: number, reducedMotion: boolean): Variants {
+  return {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        delayChildren: delay,
+        staggerChildren: reducedMotion ? 0.04 : staggerDelay,
+        when: "beforeChildren",
+      },
+    },
+  };
+}
 
 export function RevealSection({
   children,
@@ -37,25 +79,18 @@ export function RevealSection({
   variant = "fade-up",
   delay = 0,
   stagger = false,
-  staggerDelay = 0.1,
+  staggerDelay = 0.12,
 }: RevealProps) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { once: true, margin: "-100px" });
+  const reducedMotion = useReducedMotion();
+  const itemVariants = createItemVariants(variant, reducedMotion, delay);
 
   if (stagger) {
     return (
       <motion.div
-        ref={ref}
         initial="hidden"
-        animate={isInView ? "visible" : "hidden"}
-        variants={{
-          visible: {
-            transition: {
-              staggerChildren: staggerDelay,
-              delayChildren: delay,
-            },
-          },
-        }}
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.18, margin: "0px 0px -12% 0px" }}
+        variants={createContainerVariants(staggerDelay, delay, reducedMotion)}
         className={className}
       >
         {children}
@@ -65,15 +100,10 @@ export function RevealSection({
 
   return (
     <motion.div
-      ref={ref}
       initial="hidden"
-      animate={isInView ? "visible" : "hidden"}
-      variants={variants[variant]}
-      transition={{
-        duration: 0.6,
-        delay,
-        ease: "easeOut",
-      }}
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.24, margin: "0px 0px -10% 0px" }}
+      variants={itemVariants}
       className={className}
     >
       {children}
@@ -81,18 +111,18 @@ export function RevealSection({
   );
 }
 
-// For individual stagger items
 export function RevealItem({
   children,
   className = "",
   variant = "fade-up",
 }: Omit<RevealProps, "delay" | "stagger" | "staggerDelay">) {
+  const reducedMotion = useReducedMotion();
+
   return (
-    <motion.div variants={variants[variant]} className={className}>
+    <motion.div variants={createItemVariants(variant, reducedMotion)} className={className}>
       {children}
     </motion.div>
   );
 }
 
-// Default export for backward compatibility
 export default RevealSection;
