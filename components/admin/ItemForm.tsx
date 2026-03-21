@@ -1,13 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { Save, Trash2, X, Image as ImageIcon } from "lucide-react";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import FileUpload from "./FileUpload";
+import { AlertCircle, Image as ImageIcon, Save, Trash2, X } from "lucide-react";
+
+export type ItemFormSubmitResult = {
+  success: boolean;
+  errorType?: "auth" | "validation" | "server";
+  message?: string;
+  fieldErrors?: Record<string, string>;
+};
 
 interface ItemFormProps {
-  initialData?: FormState;
+  initialData?: Record<string, unknown>;
   collection: string;
-  onSubmit: (data: FormState) => void;
+  onSubmit: (data: Record<string, unknown>) => Promise<ItemFormSubmitResult>;
   onCancel: () => void;
 }
 
@@ -19,7 +27,19 @@ const PROJECT_JSON_FIELDS = [
   "technicalSections",
 ] as const;
 
+const REQUIRED_FIELDS: Record<string, string[]> = {
+  project: ["title"],
+  experience: ["role", "company"],
+  education: ["institution", "degree"],
+  skill: ["category"],
+  achievement: ["title"],
+  cpprofile: ["platform"],
+};
+
+const URL_FIELDS = new Set(["link", "repo"]);
+
 type ProjectJsonField = (typeof PROJECT_JSON_FIELDS)[number];
+
 type FormState = Record<string, unknown>;
 
 const EMPTY_PROJECT_JSON_VALUES: Record<ProjectJsonField, string> = {
@@ -29,6 +49,18 @@ const EMPTY_PROJECT_JSON_VALUES: Record<ProjectJsonField, string> = {
   keyChallenges: "[]",
   technicalSections: "[]",
 };
+
+function getStringValue(value: unknown) {
+  return typeof value === "string" || typeof value === "number" ? String(value) : "";
+}
+
+function getStringArrayValue(value: unknown) {
+  if (!Array.isArray(value)) {
+    return typeof value === "string" ? value : "";
+  }
+
+  return value.filter((item): item is string => typeof item === "string");
+}
 
 export default function ItemForm({ initialData, collection, onSubmit, onCancel }: ItemFormProps) {
   const [formData, setFormData] = useState<FormState>(initialData || {});
@@ -44,55 +76,137 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
           }
         : EMPTY_PROJECT_JSON_VALUES
   );
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [errorType, setErrorType] = useState<ItemFormSubmitResult["errorType"]>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  const requiredFields = useMemo(() => REQUIRED_FIELDS[collection] ?? [], [collection]);
+
+  const updateField = (name: string, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[name]) {
+        return prev;
+      }
+
+      const nextErrors = { ...prev };
+      delete nextErrors[name];
+      return nextErrors;
+    });
+    setFormError(null);
+    setErrorType(undefined);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    updateField(e.target.name, e.target.value);
   };
 
   const handleArrayChange = (e: React.ChangeEvent<HTMLTextAreaElement>, field: string) => {
-    const array = e.target.value.split("\n");
-    setFormData((prev) => ({ ...prev, [field]: array }));
-  };
+    const array = e.target.value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (collection === "project") {
-      const parsedProjectFields = parseProjectJsonFields(projectJsonValues);
-      if (!parsedProjectFields.success) {
-        alert(parsedProjectFields.message);
-        return;
-      }
-
-      onSubmit({
-        ...formData,
-        ...parsedProjectFields.data,
-      });
-      return;
-    }
-
-    onSubmit(formData);
+    updateField(field, array);
   };
 
   const handleImageUpload = (url: string, field: string) => {
-    setFormData((prev) => ({ ...prev, [field]: url }));
+    updateField(field, url);
   };
 
   const handleMultipleImageUpload = (url: string, field: string) => {
     const currentImages = readStringArray(formData[field]);
-    setFormData((prev) => ({ ...prev, [field]: [...currentImages, url] }));
+    updateField(field, [...currentImages, url]);
   };
 
   const handleRemoveImage = (index: number, field: string) => {
     const currentImages = readStringArray(formData[field]);
-    const updatedImages = currentImages.filter((_, i) => i !== index);
-    setFormData((prev) => ({ ...prev, [field]: updatedImages }));
+    updateField(
+      field,
+      currentImages.filter((_: string, imageIndex: number) => imageIndex !== index)
+    );
   };
 
   const handleProjectJsonChange = (field: ProjectJsonField, value: string) => {
     setProjectJsonValues((prev) => ({ ...prev, [field]: value }));
+    setFormError(null);
+    setErrorType(undefined);
+  };
+
+  const validateForm = () => {
+    const nextErrors: Record<string, string> = {};
+
+    for (const field of requiredFields) {
+      const value = formData[field];
+      const isMissing = Array.isArray(value) ? value.length === 0 : !String(value || "").trim();
+
+      if (isMissing) {
+        nextErrors[field] = "This field is required.";
+      }
+    }
+
+    for (const [field, value] of Object.entries(formData)) {
+      if (!URL_FIELDS.has(field) || !value || typeof value !== "string") {
+        continue;
+      }
+
+      try {
+        new URL(value);
+      } catch {
+        nextErrors[field] = "Enter a valid URL, including http:// or https://.";
+      }
+    }
+
+    setFieldErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      setErrorType("validation");
+      setFormError("Please correct the highlighted fields before saving.");
+      return;
+    }
+
+    let payload: FormState = formData;
+
+    if (collection === "project") {
+      const parsedProjectFields = parseProjectJsonFields(projectJsonValues);
+      if (!parsedProjectFields.success) {
+        setErrorType("validation");
+        setFormError(parsedProjectFields.message);
+        return;
+      }
+
+      payload = {
+        ...formData,
+        ...parsedProjectFields.data,
+      };
+    }
+
+    setIsSubmitting(true);
+    setFormError(null);
+    setErrorType(undefined);
+
+    const result = await onSubmit(payload);
+
+    if (!result.success) {
+      setFieldErrors(result.fieldErrors || {});
+      setErrorType(result.errorType);
+      setFormError(
+        result.message ||
+          (result.errorType === "auth"
+            ? "Your admin session has expired. Please sign in again."
+            : result.errorType === "validation"
+              ? "Please correct the highlighted fields before trying again."
+              : "We could not save this item. Please try again.")
+      );
+    }
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -101,40 +215,75 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
         <h3 className="font-bold text-2xl text-foreground">
           {initialData ? "Edit" : "Add New"} <span className="text-primary capitalize">{collection}</span>
         </h3>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-muted-foreground hover:text-foreground transition p-2"
-        >
+        <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-foreground transition p-2">
           <X className="w-5 h-5" />
         </button>
       </div>
+
+      {formError && (
+        <div className="mb-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>
+            <p className="font-medium capitalize">{errorType || "Submission"} issue</p>
+            <p>{formError}</p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
         {collection === "project" && (
           <>
             <div className="grid grid-cols-1 gap-6">
-              <InputGroup label="Project Title" name="title" value={formData.title} onChange={handleChange} required />
-              <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} />
+              <InputGroup
+                label="Project Title"
+                name="title"
+                value={getStringValue(formData.title)}
+                onChange={handleChange}
+                required
+                error={fieldErrors.title}
+              />
+              <TextAreaGroup
+                label="Description"
+                name="description"
+                value={getStringValue(formData.description)}
+                onChange={handleChange}
+                error={fieldErrors.description}
+              />
               <TextAreaGroup
                 label="System Design Overview"
                 name="systemDesign"
-                value={formData.systemDesign}
+                value={getStringValue(formData.systemDesign)}
                 onChange={handleChange}
                 rows={6}
                 placeholder="Describe the architecture, data flow, scaling considerations, and technical tradeoffs."
+                error={fieldErrors.systemDesign}
               />
               <ArrayInputGroup
                 label="Tech Stack"
                 name="techStack"
-                value={formData.techStack}
+                value={getStringArrayValue(formData.techStack)}
                 onChange={(e) => handleArrayChange(e, "techStack")}
                 placeholder="Next.js&#10;MongoDB&#10;Tailwind"
+                error={fieldErrors.techStack}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Live Link" name="link" type="url" value={formData.link} onChange={handleChange} />
-              <InputGroup label="GitHub Repo" name="repo" type="url" value={formData.repo} onChange={handleChange} />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Live Link"
+                name="link"
+                type="url"
+                value={getStringValue(formData.link)}
+                onChange={handleChange}
+                error={fieldErrors.link}
+              />
+              <InputGroup
+                label="GitHub Repo"
+                name="repo"
+                type="url"
+                value={getStringValue(formData.repo)}
+                onChange={handleChange}
+                error={fieldErrors.repo}
+              />
             </div>
             <JsonTextAreaGroup
               label="Additional Links"
@@ -172,26 +321,28 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
               helperText='JSON array of sections, e.g. [{"title":"Implementation","type":"implementation","content":"How it works","bullets":["Step 1"],"code":"const app = 1;","language":"ts"}]'
             />
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Project Images (Gallery)
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                <ImageIcon className="h-4 w-4" /> Project Images (Gallery)
               </label>
 
               {readStringArray(formData.images).length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                   {readStringArray(formData.images).map((url, index) => (
-                    <div key={`${url}-${index}`} className="relative group aspect-video">
-                      <img
+                    <div key={`${url}-${index}`} className="relative aspect-video overflow-hidden rounded-md">
+                      <Image
                         src={url}
                         alt={`Project ${index + 1}`}
-                        className="w-full h-full object-cover rounded-md border bg-muted"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="rounded-md border bg-muted object-cover"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index, "images")}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm hover:scale-105"
+                        className="absolute top-1 right-1 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 shadow-sm transition hover:scale-105 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
@@ -205,36 +356,72 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "experience" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Role / Title" name="role" value={formData.role} onChange={handleChange} required />
-              <InputGroup label="Company Name" name="company" value={formData.company} onChange={handleChange} required />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Role / Title"
+                name="role"
+                value={getStringValue(formData.role)}
+                onChange={handleChange}
+                required
+                error={fieldErrors.role}
+              />
+              <InputGroup
+                label="Company Name"
+                name="company"
+                value={getStringValue(formData.company)}
+                onChange={handleChange}
+                required
+                error={fieldErrors.company}
+              />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Start Date" name="startDate" value={formData.startDate} onChange={handleChange} placeholder="Jan 2024" />
-              <InputGroup label="End Date" name="endDate" value={formData.endDate} onChange={handleChange} placeholder="Present" />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Start Date"
+                name="startDate"
+                value={getStringValue(formData.startDate)}
+                onChange={handleChange}
+                placeholder="Jan 2024"
+                error={fieldErrors.startDate}
+              />
+              <InputGroup
+                label="End Date"
+                name="endDate"
+                value={getStringValue(formData.endDate)}
+                onChange={handleChange}
+                placeholder="Present"
+                error={fieldErrors.endDate}
+              />
             </div>
-            <InputGroup label="Location" name="location" value={formData.location} onChange={handleChange} />
+            <InputGroup
+              label="Location"
+              name="location"
+              value={getStringValue(formData.location)}
+              onChange={handleChange}
+              error={fieldErrors.location}
+            />
 
             <ArrayInputGroup
               label="Key Responsibilities"
               name="description"
-              value={formData.description}
+              value={getStringArrayValue(formData.description)}
               onChange={(e) => handleArrayChange(e, "description")}
               placeholder="- Built new feature...&#10;- Optimized database..."
+              error={fieldErrors.description}
             />
             <ArrayInputGroup
               label="Technologies Used"
               name="technologies"
-              value={formData.technologies}
+              value={getStringArrayValue(formData.technologies)}
               onChange={(e) => handleArrayChange(e, "technologies")}
               placeholder="React&#10;Node.js"
+              error={fieldErrors.technologies}
             />
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4">Company Logo</label>
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 block text-sm font-medium text-foreground">Company Logo</label>
               <FileUpload
                 label="Upload Logo"
-                initialUrl={readString(formData.logo)}
+                initialUrl={typeof formData.logo === "string" ? formData.logo : undefined}
                 onUpload={(url) => handleImageUpload(url, "logo")}
               />
             </div>
@@ -243,47 +430,90 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "skill" && (
           <>
-            <InputGroup label="Category Name" name="category" value={formData.category} onChange={handleChange} placeholder="Frontend, Backend, etc." required />
+            <InputGroup
+              label="Category Name"
+              name="category"
+              value={getStringValue(formData.category)}
+              onChange={handleChange}
+              placeholder="Frontend, Backend, etc."
+              required
+              error={fieldErrors.category}
+            />
             <ArrayInputGroup
               label="Skill Items"
               name="items"
-              value={formData.items}
+              value={getStringArrayValue(formData.items)}
               onChange={(e) => handleArrayChange(e, "items")}
               placeholder="React&#10;TypeScript&#10;CSS"
+              error={fieldErrors.items}
             />
           </>
         )}
 
         {collection === "achievement" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Award Title" name="title" value={formData.title} onChange={handleChange} required />
-              <InputGroup label="Organization" name="organization" value={formData.organization} onChange={handleChange} />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Award Title"
+                name="title"
+                value={getStringValue(formData.title)}
+                onChange={handleChange}
+                required
+                error={fieldErrors.title}
+              />
+              <InputGroup
+                label="Organization"
+                name="organization"
+                value={getStringValue(formData.organization)}
+                onChange={handleChange}
+                error={fieldErrors.organization}
+              />
             </div>
-            <InputGroup label="Date Received" name="date" value={formData.date} onChange={handleChange} />
-            <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} />
-            <InputGroup label="Certificate Link" name="link" type="url" value={formData.link} onChange={handleChange} />
+            <InputGroup
+              label="Date Received"
+              name="date"
+              value={getStringValue(formData.date)}
+              onChange={handleChange}
+              error={fieldErrors.date}
+            />
+            <TextAreaGroup
+              label="Description"
+              name="description"
+              value={getStringValue(formData.description)}
+              onChange={handleChange}
+              error={fieldErrors.description}
+            />
+            <InputGroup
+              label="Certificate Link"
+              name="link"
+              type="url"
+              value={getStringValue(formData.link)}
+              onChange={handleChange}
+              error={fieldErrors.link}
+            />
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Certificates / Images
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                <ImageIcon className="h-4 w-4" /> Certificates / Images
               </label>
 
               {readStringArray(formData.images).length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
                   {readStringArray(formData.images).map((url, index) => (
-                    <div key={`${url}-${index}`} className="relative group aspect-video">
-                      <img
+                    <div key={`${url}-${index}`} className="relative aspect-video overflow-hidden rounded-md">
+                      <Image
                         src={url}
                         alt={`Achievement ${index + 1}`}
-                        className="w-full h-full object-cover rounded-md border bg-muted"
+                        fill
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        className="rounded-md border bg-muted object-cover"
                       />
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index, "images")}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm hover:scale-105"
+                        className="absolute top-1 right-1 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 shadow-sm transition hover:scale-105 group-hover:opacity-100"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
@@ -297,40 +527,108 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "education" && (
           <>
-            <InputGroup label="Institution" name="institution" value={formData.institution} onChange={handleChange} required />
-            <InputGroup label="Degree / Certification" name="degree" value={formData.degree} onChange={handleChange} required />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Start Date" name="startDate" value={formData.startDate} onChange={handleChange} />
-              <InputGroup label="End Date" name="endDate" value={formData.endDate} onChange={handleChange} />
+            <InputGroup
+              label="Institution"
+              name="institution"
+              value={getStringValue(formData.institution)}
+              onChange={handleChange}
+              required
+              error={fieldErrors.institution}
+            />
+            <InputGroup
+              label="Degree / Certification"
+              name="degree"
+              value={getStringValue(formData.degree)}
+              onChange={handleChange}
+              required
+              error={fieldErrors.degree}
+            />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Start Date"
+                name="startDate"
+                value={getStringValue(formData.startDate)}
+                onChange={handleChange}
+                error={fieldErrors.startDate}
+              />
+              <InputGroup
+                label="End Date"
+                name="endDate"
+                value={getStringValue(formData.endDate)}
+                onChange={handleChange}
+                error={fieldErrors.endDate}
+              />
             </div>
-            <InputGroup label="Grade / CGPA" name="grade" value={formData.grade} onChange={handleChange} />
+            <InputGroup
+              label="Grade / CGPA"
+              name="grade"
+              value={getStringValue(formData.grade)}
+              onChange={handleChange}
+              error={fieldErrors.grade}
+            />
           </>
         )}
 
         {collection === "cpprofile" && (
           <>
-            <InputGroup label="Platform" name="platform" value={formData.platform} onChange={handleChange} placeholder="LeetCode" required />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <InputGroup label="Current Rating" name="rating" value={formData.rating} onChange={handleChange} />
-              <InputGroup label="Max Rating" name="maxRating" value={formData.maxRating} onChange={handleChange} />
+            <InputGroup
+              label="Platform"
+              name="platform"
+              value={getStringValue(formData.platform)}
+              onChange={handleChange}
+              placeholder="LeetCode"
+              required
+              error={fieldErrors.platform}
+            />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <InputGroup
+                label="Current Rating"
+                name="rating"
+                value={getStringValue(formData.rating)}
+                onChange={handleChange}
+                error={fieldErrors.rating}
+              />
+              <InputGroup
+                label="Max Rating"
+                name="maxRating"
+                value={getStringValue(formData.maxRating)}
+                onChange={handleChange}
+                error={fieldErrors.maxRating}
+              />
             </div>
-            <InputGroup label="Rank / Title" name="rank" value={formData.rank} onChange={handleChange} />
-            <InputGroup label="Profile Link" name="link" type="url" value={formData.link} onChange={handleChange} />
+            <InputGroup
+              label="Rank / Title"
+              name="rank"
+              value={getStringValue(formData.rank)}
+              onChange={handleChange}
+              error={fieldErrors.rank}
+            />
+            <InputGroup
+              label="Profile Link"
+              name="link"
+              type="url"
+              value={getStringValue(formData.link)}
+              onChange={handleChange}
+              error={fieldErrors.link}
+            />
           </>
         )}
       </div>
 
-      <div className="flex gap-4 mt-10 pt-6 border-t">
+      <div className="mt-10 flex gap-4 border-t pt-6">
         <button
           type="submit"
-          className="flex-1 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition flex items-center justify-center gap-2 shadow-sm"
+          disabled={isSubmitting}
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          <Save className="w-4 h-4" /> Save Details
+          <Save className={`h-4 w-4 ${isSubmitting ? "animate-pulse" : ""}`} />
+          {isSubmitting ? "Saving..." : "Save Details"}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition font-medium"
+          disabled={isSubmitting}
+          className="rounded-lg bg-secondary px-6 py-3 font-medium text-secondary-foreground transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-70"
         >
           Cancel
         </button>
@@ -347,23 +645,28 @@ interface InputGroupProps {
   type?: string;
   placeholder?: string;
   required?: boolean;
+  error?: string;
 }
 
-function InputGroup({ label, name, value, onChange, type = "text", placeholder, required }: InputGroupProps) {
+function InputGroup({ label, name, value, onChange, type = "text", placeholder, required, error }: InputGroupProps) {
   return (
     <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1 transition-colors group-focus-within:text-primary">
+      <label className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label} {required && <span className="text-destructive">*</span>}
       </label>
       <input
         type={type}
         name={name}
-        value={typeof value === "string" || typeof value === "number" ? value : ""}
+        value={getStringValue(value)}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full p-3.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm text-sm placeholder:text-muted-foreground/50 hover:border-primary/50"
+        aria-invalid={Boolean(error)}
+        className={`w-full rounded-xl border bg-background p-3.5 text-sm shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-primary/20"
+        } focus:ring-2`}
         required={required}
       />
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -375,22 +678,27 @@ interface TextAreaGroupProps {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   placeholder?: string;
+  error?: string;
 }
 
-function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder }: TextAreaGroupProps) {
+function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder, error }: TextAreaGroupProps) {
   return (
     <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1 transition-colors group-focus-within:text-primary">
+      <label className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label}
       </label>
       <textarea
         name={name}
-        value={typeof value === "string" ? value : ""}
+        value={getStringValue(value)}
         onChange={onChange}
         rows={rows}
         placeholder={placeholder}
-        className="w-full p-3.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm text-sm resize-y placeholder:text-muted-foreground/50 hover:border-primary/50"
+        aria-invalid={Boolean(error)}
+        className={`w-full resize-y rounded-xl border bg-background p-3.5 text-sm shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-primary/20"
+        } focus:ring-2`}
       />
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -401,23 +709,28 @@ interface ArrayInputGroupProps {
   value: unknown;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
+  error?: string;
 }
 
-function ArrayInputGroup({ label, name, value, onChange, placeholder }: ArrayInputGroupProps) {
+function ArrayInputGroup({ label, name, value, onChange, placeholder, error }: ArrayInputGroupProps) {
   return (
     <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex justify-between items-center transition-colors group-focus-within:text-primary">
+      <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label}
-        <span className="text-[10px] text-muted-foreground/70 font-medium px-2 py-0.5 bg-muted rounded-full">One item per line</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/70">One item per line</span>
       </label>
       <textarea
         name={name}
-        value={Array.isArray(value) ? value.join("\n") : typeof value === "string" ? value : ""}
+        value={Array.isArray(value) ? value.join("\n") : getStringValue(value)}
         onChange={onChange}
         rows={5}
         placeholder={placeholder}
-        className="w-full p-3.5 bg-background border border-input rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all shadow-sm text-sm font-mono leading-relaxed placeholder:text-muted-foreground/50 hover:border-primary/50"
+        aria-invalid={Boolean(error)}
+        className={`w-full rounded-xl border bg-background p-3.5 font-mono text-sm leading-relaxed shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-primary/20"
+        } focus:ring-2`}
       />
+      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -433,7 +746,7 @@ interface JsonTextAreaGroupProps {
 function JsonTextAreaGroup({ label, value, onChange, helperText, rows = 6 }: JsonTextAreaGroupProps) {
   return (
     <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider transition-colors group-focus-within:text-primary">
+      <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label}
       </label>
       <textarea
@@ -481,8 +794,4 @@ function readStringArray(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string");
-}
-
-function readString(value: unknown) {
-  return typeof value === "string" ? value : undefined;
 }

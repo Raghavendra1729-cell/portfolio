@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AdminLogin from "@/components/admin/AdminLogin";
-import ItemForm from "@/components/admin/ItemForm";
+import ItemForm, { type ItemFormSubmitResult } from "@/components/admin/ItemForm";
 import { 
   Briefcase, 
   GraduationCap, 
@@ -31,15 +31,29 @@ const COLLECTIONS = [
   { id: "cpprofile", label: "CP Profiles", icon: User },
 ];
 
+
+interface AdminItem extends Record<string, unknown> {
+  _id?: string;
+  title?: string;
+  role?: string;
+  institution?: string;
+  category?: string;
+  platform?: string;
+  company?: string;
+  degree?: string;
+  organization?: string;
+  username?: string;
+  featured?: boolean;
+}
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState("project");
   
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<AdminItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isEditing, setIsEditing] = useState<any | null>(null);
+  const [isEditing, setIsEditing] = useState<AdminItem | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -80,9 +94,9 @@ export default function AdminPage() {
     setSecret("");
   };
 
-  const fetchItems = async () => {
+  const fetchItems = useCallback(async () => {
     if (!isAuthenticated) return;
-    
+
     setLoading(true);
     try {
       const res = await fetch(`/api/data?collection=${activeTab}`);
@@ -93,7 +107,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -102,17 +116,17 @@ export default function AdminPage() {
       setIsCreating(false);
       setSearchTerm("");
     }
-  }, [activeTab, isAuthenticated]);
+  }, [fetchItems, isAuthenticated]);
 
   // Handlers
-  const handleSave = async (data: any) => {
+  const handleSave = async (data: Record<string, unknown>): Promise<ItemFormSubmitResult> => {
     const isUpdate = !!isEditing;
     const endpoint = "/api/admin";
     const method = isUpdate ? "PUT" : "POST";
     const payload = {
       collection: activeTab,
       id: isUpdate ? isEditing._id : undefined,
-      data: data
+      data,
     };
 
     try {
@@ -122,16 +136,26 @@ export default function AdminPage() {
         body: JSON.stringify(payload),
       });
       const json = await res.json();
-      
+
       if (json.success) {
         setIsEditing(null);
         setIsCreating(false);
-        fetchItems();
-      } else {
-        alert("Error: " + (json.error || json.message));
+        await fetchItems();
+        return { success: true };
       }
-    } catch (err) {
-      alert("Network Error");
+
+      return {
+        success: false,
+        errorType: res.status === 401 ? "auth" : res.status === 400 ? "validation" : "server",
+        message: json.error || json.message,
+        fieldErrors: json.fieldErrors,
+      };
+    } catch {
+      return {
+        success: false,
+        errorType: "server",
+        message: "Network error. Please try again.",
+      };
     }
   };
 
@@ -143,13 +167,13 @@ export default function AdminPage() {
         headers: { "x-admin-secret": secret },
       });
       if (res.ok) fetchItems();
-    } catch (err) {
+    } catch {
       alert("Delete failed");
     }
   };
 
   // Filter items
-  const filteredItems = items.filter(item => {
+  const filteredItems = items.filter((item) => {
     const term = searchTerm.toLowerCase();
     const title = item.title || item.role || item.institution || item.category || item.platform || "";
     const subtitle = item.company || item.degree || item.organization || item.username || "";
@@ -256,7 +280,7 @@ export default function AdminPage() {
             <div className="animate-fade-up">
               <ItemForm 
                 collection={activeTab}
-                initialData={isEditing}
+                initialData={isEditing ?? undefined}
                 onSubmit={handleSave}
                 onCancel={() => { setIsEditing(null); setIsCreating(false); }}
               />
@@ -292,7 +316,7 @@ export default function AdminPage() {
               ) : (
                 filteredItems.map((item) => (
                   <div 
-                    key={item._id} 
+                    key={item._id ?? `${item.title || item.role || item.institution || item.category || item.platform || "item"}-${activeTab}`} 
                     className="bg-card p-5 rounded-xl border shadow-sm hover:shadow-md hover:border-primary/20 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
                   >
                     <div className="flex items-start gap-4">
@@ -312,7 +336,7 @@ export default function AdminPage() {
                             </span>
                           )}
                           {/* Optional Badges */}
-                          {item.featured && (
+                          {Boolean(item.featured) && (
                             <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs font-medium">
                               Featured
                             </span>
@@ -329,8 +353,9 @@ export default function AdminPage() {
                         <Edit3 className="w-4 h-4" /> Edit
                       </button>
                       <button 
-                        onClick={() => handleDelete(item._id)}
-                        className="px-4 py-2 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg font-medium flex items-center gap-2 transition"
+                        onClick={() => item._id && handleDelete(item._id)}
+                        disabled={!item._id}
+                        className="px-4 py-2 text-sm bg-destructive/10 text-destructive hover:bg-destructive/20 rounded-lg font-medium flex items-center gap-2 transition disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Trash2 className="w-4 h-4" /> Delete
                       </button>
