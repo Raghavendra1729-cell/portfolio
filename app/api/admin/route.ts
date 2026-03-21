@@ -1,16 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import { revalidatePath } from 'next/cache';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { revalidatePath } from "next/cache";
+import {
+  authenticateAdminSecret,
+  clearAdminSessionCookie,
+  createAdminSessionToken,
+  isAuthenticated,
+  setAdminSessionCookie,
+} from "@/lib/auth";
 
-// Import ALL your models
-import Project from '@/models/Project';
-import Experience from '@/models/Experience';
-import Education from '@/models/Education';
-import Skill from '@/models/Skill';
-import Achievement from '@/models/Achievement';
-import CPProfile from '@/models/CPProfile';
+import Project from "@/models/Project";
+import Experience from "@/models/Experience";
+import Education from "@/models/Education";
+import Skill from "@/models/Skill";
+import Achievement from "@/models/Achievement";
+import CPProfile from "@/models/CPProfile";
 
-const MODELS: Record<string, any> = {
+type AdminModel = {
+  create: (data: Record<string, unknown>) => Promise<unknown>;
+  findByIdAndUpdate: (id: string, data: Record<string, unknown>, options: { new: boolean; runValidators: boolean }) => Promise<unknown>;
+  findByIdAndDelete: (id: string) => Promise<unknown>;
+};
+
+const MODELS: Record<string, AdminModel> = {
   project: Project,
   experience: Experience,
   education: Education,
@@ -19,99 +31,224 @@ const MODELS: Record<string, any> = {
   cpprofile: CPProfile,
 };
 
-function isAuthorized(req: NextRequest) {
-  const secret = req.headers.get('x-admin-secret');
-  return secret === process.env.ADMIN_SECRET;
-}
+type AdminErrorType = "auth" | "validation" | "server";
 
 function getModel(collection: string | null) {
-  if (!collection || !MODELS[collection.toLowerCase()]) return null;
+  if (!collection || !MODELS[collection.toLowerCase()]) {
+    return null;
+  }
+
   return MODELS[collection.toLowerCase()];
 }
 
-// ------------------------------------------------------------------
-// NEW: GET (Auth Check)
-// Usage: GET /api/admin
-// ------------------------------------------------------------------
+function errorResponse(status: number, errorType: AdminErrorType, message: string, details?: Record<string, unknown>) {
+  return NextResponse.json(
+    {
+      success: false,
+      errorType,
+      message,
+      ...details,
+    },
+    { status }
+  );
+}
+
+function requireAuthenticatedSession(req: NextRequest) {
+  if (!isAuthenticated(req)) {
+    return errorResponse(401, "auth", "Your admin session is missing or has expired. Please sign in again.");
+  }
+
+  return null;
+}
+
+async function parseJsonBody(req: NextRequest) {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
+
+function normalizeData(data: Record<string, unknown>) {
+  const clonedData = { ...data };
+  delete clonedData._id;
+  delete clonedData.__v;
+  return clonedData;
+}
+
+function handleMutationError(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    error.name === "ValidationError" &&
+    "errors" in error
+  ) {
+    const validationError = error as {
+      errors: Record<string, { message?: string }>;
+    };
+
+    const fieldErrors = Object.fromEntries(
+      Object.entries(validationError.errors).map(([field, value]) => [field, value.message || "Invalid value"])
+    );
+
+    return errorResponse(422, "validation", "Please correct the highlighted fields and try again.", { fieldErrors });
+  }
+
+  if (typeof error === "object" && error !== null && "name" in error && error.name === "CastError") {
+    return errorResponse(400, "validation", "A provided identifier or field value is invalid.");
+  }
+
+  console.error("Admin mutation failed", error);
+  return errorResponse(500, "server", "The server could not save your changes. Please try again.");
+}
+
 export async function GET(req: NextRequest) {
-  await dbConnect();
-  
-  if (!isAuthorized(req)) {
-    return NextResponse.json({ authenticated: false }, { status: 401 });
+  const { searchParams } = new URL(req.url);
+
+  if (searchParams.get("logout") === "true") {
+    return clearAdminSessionCookie(
+      NextResponse.json({ success: true, authenticated: false, message: "Logged out successfully." })
+    );
   }
 
-  return NextResponse.json({ authenticated: true }, { status: 200 });
+  const suppliedSecret = req.headers.get("x-admin-secret");
+
+  if (suppliedSecret) {
+    if (!authenticateAdminSecret(suppliedSecret)) {
+      return clearAdminSessionCookie(errorResponse(401, "auth", "The admin secret you entered is incorrect."));
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      authenticated: true,
+      message: "Admin session established.",
+    });
+
+    return setAdminSessionCookie(response, createAdminSessionToken());
+  }
+
+  if (!isAuthenticated(req)) {
+    return clearAdminSessionCookie(errorResponse(401, "auth", "You are not currently authenticated."));
+  }
+
+  return NextResponse.json({ success: true, authenticated: true, message: "Authenticated." });
 }
 
-// ------------------------------------------------------------------
-// 1. POST: CREATE NEW ITEM
-// ------------------------------------------------------------------
 export async function POST(req: NextRequest) {
+  const authError = requireAuthenticatedSession(req);
+  if (authError) {
+    return authError;
+  }
+
+  const body = await parseJsonBody(req);
+  if (!body || typeof body !== "object") {
+    return errorResponse(400, "validation", "The request body must be valid JSON.");
+  }
+
+  const { collection, data } = body as { collection?: string; data?: Record<string, unknown> };
+  const Model = getModel(collection ?? null);
+
+  if (!Model) {
+    return errorResponse(400, "validation", "The requested collection is invalid.");
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return errorResponse(400, "validation", "A valid content payload is required.");
+  }
+
   await dbConnect();
-  if (!isAuthorized(req)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const body = await req.json();
-    const { collection, data } = body;
+    const newItem = await Model.create(normalizeData(data));
+    revalidatePath("/", "layout");
 
-    const Model = getModel(collection);
-    if (!Model) return NextResponse.json({ message: 'Invalid collection' }, { status: 400 });
-
-    const newItem = await Model.create(data);
-    revalidatePath('/', 'layout'); 
-    
-    return NextResponse.json({ success: true, data: newItem }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, data: newItem, message: "Item created successfully." }, { status: 201 });
+  } catch (error) {
+    return handleMutationError(error);
   }
 }
 
-// ------------------------------------------------------------------
-// 2. PUT: UPDATE EXISTING ITEM
-// ------------------------------------------------------------------
 export async function PUT(req: NextRequest) {
+  const authError = requireAuthenticatedSession(req);
+  if (authError) {
+    return authError;
+  }
+
+  const body = await parseJsonBody(req);
+  if (!body || typeof body !== "object") {
+    return errorResponse(400, "validation", "The request body must be valid JSON.");
+  }
+
+  const { collection, id, data } = body as {
+    collection?: string;
+    id?: string;
+    data?: Record<string, unknown>;
+  };
+
+  if (!id) {
+    return errorResponse(400, "validation", "An item ID is required for updates.");
+  }
+
+  const Model = getModel(collection ?? null);
+  if (!Model) {
+    return errorResponse(400, "validation", "The requested collection is invalid.");
+  }
+
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return errorResponse(400, "validation", "A valid content payload is required.");
+  }
+
   await dbConnect();
-  if (!isAuthorized(req)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   try {
-    const body = await req.json();
-    const { collection, id, data } = body;
+    const updatedItem = await Model.findByIdAndUpdate(id, normalizeData(data), {
+      new: true,
+      runValidators: true,
+    });
 
-    if (!id) return NextResponse.json({ message: 'ID required' }, { status: 400 });
+    if (!updatedItem) {
+      return errorResponse(404, "validation", "The item you tried to update could not be found.");
+    }
 
-    const Model = getModel(collection);
-    if (!Model) return NextResponse.json({ message: 'Invalid collection' }, { status: 400 });
-
-    const updatedItem = await Model.findByIdAndUpdate(id, data, { new: true, runValidators: false });
-    revalidatePath('/', 'layout');
-
-    return NextResponse.json({ success: true, data: updatedItem });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    revalidatePath("/", "layout");
+    return NextResponse.json({ success: true, data: updatedItem, message: "Item updated successfully." });
+  } catch (error) {
+    return handleMutationError(error);
   }
 }
 
-// ------------------------------------------------------------------
-// 3. DELETE: REMOVE ITEM
-// ------------------------------------------------------------------
 export async function DELETE(req: NextRequest) {
-  await dbConnect();
-  if (!isAuthorized(req)) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  const authError = requireAuthenticatedSession(req);
+  if (authError) {
+    return authError;
+  }
 
   const { searchParams } = new URL(req.url);
-  const collection = searchParams.get('collection');
-  const id = searchParams.get('id');
+  const collection = searchParams.get("collection");
+  const id = searchParams.get("id");
 
-  if (!id) return NextResponse.json({ message: 'ID required' }, { status: 400 });
+  if (!id) {
+    return errorResponse(400, "validation", "An item ID is required for deletion.");
+  }
 
   const Model = getModel(collection);
-  if (!Model) return NextResponse.json({ message: 'Invalid collection' }, { status: 400 });
+  if (!Model) {
+    return errorResponse(400, "validation", "The requested collection is invalid.");
+  }
+
+  await dbConnect();
 
   try {
-    await Model.findByIdAndDelete(id);
-    revalidatePath('/', 'layout');
-    return NextResponse.json({ success: true, message: 'Deleted successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const deletedItem = await Model.findByIdAndDelete(id);
+
+    if (!deletedItem) {
+      return errorResponse(404, "validation", "The item you tried to delete could not be found.");
+    }
+
+    revalidatePath("/", "layout");
+    return NextResponse.json({ success: true, message: "Deleted successfully." });
+  } catch (error) {
+    return handleMutationError(error);
   }
 }
