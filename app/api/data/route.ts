@@ -1,42 +1,50 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import Project from '@/models/Project';
-import Experience from '@/models/Experience';
-import Education from '@/models/Education';
-import Skill from '@/models/Skill';
-import Achievement from '@/models/Achievement';
-import CPProfile from '@/models/CPProfile';
+import { z } from 'zod';
 
-const MODELS: Record<string, any> = {
-  project: Project,
-  experience: Experience,
-  education: Education,
-  skill: Skill,
-  achievement: Achievement,
-  cpprofile: CPProfile,
-};
+import { DATA_REVALIDATE_SECONDS, collectionSchema, getData } from '@/lib/data';
 
-// ------------------------------------------------------------------
-// GET: FETCH DATA
-// Usage: GET /api/data?collection=project
-// ------------------------------------------------------------------
+export const revalidate = DATA_REVALIDATE_SECONDS;
+
+const querySchema = z.object({
+  collection: collectionSchema,
+});
+
 export async function GET(req: NextRequest) {
-  await dbConnect();
+  const parsedQuery = querySchema.safeParse({
+    collection: req.nextUrl.searchParams.get('collection')?.trim().toLowerCase(),
+  });
 
-  const { searchParams } = new URL(req.url);
-  const collection = searchParams.get('collection');
-
-  const Model = MODELS[collection?.toLowerCase() || ''];
-
-  if (!Model) {
-    return NextResponse.json({ success: false, message: 'Invalid or missing collection' }, { status: 400 });
+  if (!parsedQuery.success) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Invalid or missing collection query parameter.',
+        issues: parsedQuery.error.flatten().fieldErrors,
+      },
+      { status: 400 },
+    );
   }
 
   try {
-    // Return all items, sorted by newest first
-    const data = await Model.find({}).sort({ createdAt: -1 });
-    return NextResponse.json({ success: true, data });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const data = await getData(parsedQuery.data.collection);
+
+    return NextResponse.json(
+      { success: true, data },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': `s-maxage=${DATA_REVALIDATE_SECONDS}, stale-while-revalidate=${DATA_REVALIDATE_SECONDS}`,
+        },
+      },
+    );
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Failed to load collection data.',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+      { status: 503 },
+    );
   }
 }
