@@ -229,9 +229,9 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
-            {project.images.slice(1, 3).map((img, index) => (
+            {project.images.slice(1).map((img, index) => (
               <div
-                key={img}
+                key={`${img}-${index}`}
                 className="relative min-h-[220px] overflow-hidden rounded-3xl border border-white/8 bg-slate-950/40"
               >
                 <Image
