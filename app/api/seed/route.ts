@@ -9,6 +9,7 @@ import Education from '@/models/Education';
 import Skill from '@/models/Skill';
 import Achievement from '@/models/Achievement';
 import CPProfile from '@/models/CPProfile';
+import { PORTFOLIO_DATA_TAG, getCollectionTag } from '@/lib/data';
 
 export const dynamic = 'force-dynamic';
 
@@ -221,13 +222,13 @@ const rawSeedPayload = {
 const seedPayload = seedPayloadSchema.parse(rawSeedPayload);
 
 const REVALIDATE_TAGS = [
-  'portfolio-data',
-  'portfolio-data-achievement',
-  'portfolio-data-cpprofile',
-  'portfolio-data-education',
-  'portfolio-data-experience',
-  'portfolio-data-project',
-  'portfolio-data-skill',
+  PORTFOLIO_DATA_TAG,
+  getCollectionTag('achievement'),
+  getCollectionTag('cpprofile'),
+  getCollectionTag('education'),
+  getCollectionTag('experience'),
+  getCollectionTag('project'),
+  getCollectionTag('skill'),
 ] as const;
 
 export async function GET() {
@@ -252,7 +253,7 @@ export async function GET() {
       Achievement.insertMany(seedPayload.achievements),
     ]);
 
-    REVALIDATE_TAGS.forEach((tag) => revalidateTag(tag));
+    REVALIDATE_TAGS.forEach((tag) => revalidateTag(tag, 'max'));
 
     return NextResponse.json({
       success: true,

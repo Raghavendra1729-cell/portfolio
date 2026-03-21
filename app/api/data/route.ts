@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { DATA_REVALIDATE_SECONDS, collectionSchema, getData } from '@/lib/data';
-
-export const revalidate = DATA_REVALIDATE_SECONDS;
+import { collectionSchema, getData } from '@/lib/data';
 
 const querySchema = z.object({
   collection: collectionSchema,
@@ -28,15 +26,7 @@ export async function GET(req: NextRequest) {
   try {
     const data = await getData(parsedQuery.data.collection);
 
-    return NextResponse.json(
-      { success: true, data },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': `s-maxage=${DATA_REVALIDATE_SECONDS}, stale-while-revalidate=${DATA_REVALIDATE_SECONDS}`,
-        },
-      },
-    );
+    return NextResponse.json({ success: true, data }, { status: 200 });
   } catch (error) {
     return NextResponse.json(
       {

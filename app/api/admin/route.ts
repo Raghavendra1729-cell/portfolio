@@ -1,3 +1,4 @@
+import type { Model } from 'mongoose';
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
@@ -9,8 +10,9 @@ import Education from '@/models/Education';
 import Skill from '@/models/Skill';
 import Achievement from '@/models/Achievement';
 import CPProfile from '@/models/CPProfile';
+import { revalidateCollectionData } from '@/lib/data';
 
-const MODELS: Record<string, any> = {
+const MODELS: Record<string, Model<unknown>> = {
   project: Project,
   experience: Experience,
   education: Education,
@@ -58,11 +60,15 @@ export async function POST(req: NextRequest) {
     if (!Model) return NextResponse.json({ message: 'Invalid collection' }, { status: 400 });
 
     const newItem = await Model.create(data);
-    revalidatePath('/', 'layout'); 
+    revalidateCollectionData(collection);
+    revalidatePath('/', 'layout');
     
     return NextResponse.json({ success: true, data: newItem }, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
   }
 }
 
@@ -83,11 +89,15 @@ export async function PUT(req: NextRequest) {
     if (!Model) return NextResponse.json({ message: 'Invalid collection' }, { status: 400 });
 
     const updatedItem = await Model.findByIdAndUpdate(id, data, { new: true, runValidators: false });
+    revalidateCollectionData(collection);
     revalidatePath('/', 'layout');
 
     return NextResponse.json({ success: true, data: updatedItem });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
   }
 }
 
@@ -109,9 +119,13 @@ export async function DELETE(req: NextRequest) {
 
   try {
     await Model.findByIdAndDelete(id);
+    revalidateCollectionData(collection);
     revalidatePath('/', 'layout');
     return NextResponse.json({ success: true, message: 'Deleted successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 },
+    );
   }
 }

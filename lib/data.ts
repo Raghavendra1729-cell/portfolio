@@ -1,4 +1,4 @@
-import { unstable_cache } from 'next/cache';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import type { Model } from 'mongoose';
 import { z } from 'zod';
 
@@ -23,6 +23,11 @@ type CollectionName = z.infer<typeof collectionSchema>;
 type LeanDocument = Record<string, unknown>;
 
 const DATA_REVALIDATE_SECONDS = 60 * 60;
+const PORTFOLIO_DATA_TAG = 'portfolio-data';
+
+export function getCollectionTag(collection: CollectionName) {
+  return `${PORTFOLIO_DATA_TAG}-${collection}`;
+}
 
 const MODELS: Record<CollectionName, Model<unknown>> = {
   achievement: Achievement,
@@ -60,33 +65,42 @@ async function loadCollection(collection: CollectionName) {
 }
 
 const collectionLoaders: Record<CollectionName, () => Promise<LeanDocument[]>> = {
-  achievement: unstable_cache(() => loadCollection('achievement'), ['portfolio-data', 'achievement'], {
+  achievement: unstable_cache(() => loadCollection('achievement'), [PORTFOLIO_DATA_TAG, 'achievement'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-achievement'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('achievement')],
   }),
-  cpprofile: unstable_cache(() => loadCollection('cpprofile'), ['portfolio-data', 'cpprofile'], {
+  cpprofile: unstable_cache(() => loadCollection('cpprofile'), [PORTFOLIO_DATA_TAG, 'cpprofile'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-cpprofile'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('cpprofile')],
   }),
-  education: unstable_cache(() => loadCollection('education'), ['portfolio-data', 'education'], {
+  education: unstable_cache(() => loadCollection('education'), [PORTFOLIO_DATA_TAG, 'education'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-education'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('education')],
   }),
-  experience: unstable_cache(() => loadCollection('experience'), ['portfolio-data', 'experience'], {
+  experience: unstable_cache(() => loadCollection('experience'), [PORTFOLIO_DATA_TAG, 'experience'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-experience'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('experience')],
   }),
-  project: unstable_cache(() => loadCollection('project'), ['portfolio-data', 'project'], {
+  project: unstable_cache(() => loadCollection('project'), [PORTFOLIO_DATA_TAG, 'project'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-project'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('project')],
   }),
-  skill: unstable_cache(() => loadCollection('skill'), ['portfolio-data', 'skill'], {
+  skill: unstable_cache(() => loadCollection('skill'), [PORTFOLIO_DATA_TAG, 'skill'], {
     revalidate: DATA_REVALIDATE_SECONDS,
-    tags: ['portfolio-data', 'portfolio-data-skill'],
+    tags: [PORTFOLIO_DATA_TAG, getCollectionTag('skill')],
   }),
 };
 
-export { DATA_REVALIDATE_SECONDS, collectionSchema };
+export { DATA_REVALIDATE_SECONDS, PORTFOLIO_DATA_TAG, collectionSchema };
+
+export function revalidateCollectionData(collection: string) {
+  const normalizedCollection = normalizeCollection(collection);
+
+  delete fallbackCache.payloads[normalizedCollection];
+  revalidateTag(getCollectionTag(normalizedCollection), 'max');
+
+  return normalizedCollection;
+}
 
 export async function getData(collection: string) {
   const normalizedCollection = normalizeCollection(collection);
