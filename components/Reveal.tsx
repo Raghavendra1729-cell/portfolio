@@ -81,7 +81,7 @@ export function RevealSection({
   stagger = false,
   staggerDelay = 0.12,
 }: RevealProps) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
   const itemVariants = createItemVariants(variant, reducedMotion, delay);
 
   if (stagger) {
@@ -116,7 +116,7 @@ export function RevealItem({
   className = "",
   variant = "fade-up",
 }: Omit<RevealProps, "delay" | "stagger" | "staggerDelay">) {
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = useReducedMotion() ?? false;
 
   return (
     <motion.div variants={createItemVariants(variant, reducedMotion)} className={className}>
