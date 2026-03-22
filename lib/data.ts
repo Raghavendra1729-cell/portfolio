@@ -1,18 +1,24 @@
-import dbConnect from '@/lib/mongodb';
-import Project from '@/models/Project';
-import Experience from '@/models/Experience';
-import Education from '@/models/Education';
-import Skill from '@/models/Skill';
-import Achievement from '@/models/Achievement';
-import CPProfile from '@/models/CPProfile';
+import dbConnect from "@/lib/mongodb";
+import Project from "@/models/Project";
+import Experience from "@/models/Experience";
+import Education from "@/models/Education";
+import Skill from "@/models/Skill";
+import Achievement from "@/models/Achievement";
 
-const MODELS: Record<string, any> = {
+type LeanModel = {
+  find: (query: Record<string, never>) => {
+    sort: (sort: Record<string, 1 | -1>) => {
+      lean: () => Promise<unknown[]>;
+    };
+  };
+};
+
+const MODELS: Record<string, LeanModel> = {
   project: Project,
   experience: Experience,
   education: Education,
   skill: Skill,
   achievement: Achievement,
-  cpprofile: CPProfile,
 };
 
 export async function getData(collection: string) {
@@ -23,6 +29,5 @@ export async function getData(collection: string) {
 
   const data = await Model.find({}).sort({ createdAt: -1 }).lean();
 
-  // Bullet-proof serialization: JSON round-trip strips all BSON types
   return JSON.parse(JSON.stringify(data));
 }

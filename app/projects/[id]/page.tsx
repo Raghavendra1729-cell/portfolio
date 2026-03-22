@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import dbConnect from "@/lib/mongodb";
 import Project from "@/models/Project";

@@ -8,13 +8,10 @@ import {
   isAuthenticated,
   setAdminSessionCookie,
 } from "@/lib/auth";
+import { isSupportedAdminCollection, validateContentData, type AdminCollectionId } from "@/lib/content-schema";
 
-import Project from "@/models/Project";
-import Experience from "@/models/Experience";
-import Education from "@/models/Education";
 import Skill from "@/models/Skill";
 import Achievement from "@/models/Achievement";
-import CPProfile from "@/models/CPProfile";
 
 type AdminModel = {
   create: (data: Record<string, unknown>) => Promise<unknown>;
@@ -22,23 +19,19 @@ type AdminModel = {
   findByIdAndDelete: (id: string) => Promise<unknown>;
 };
 
-const MODELS: Record<string, AdminModel> = {
-  project: Project,
-  experience: Experience,
-  education: Education,
+const MODELS: Record<AdminCollectionId, AdminModel> = {
   skill: Skill,
   achievement: Achievement,
-  cpprofile: CPProfile,
 };
 
 type AdminErrorType = "auth" | "validation" | "server";
 
 function getModel(collection: string | null) {
-  if (!collection || !MODELS[collection.toLowerCase()]) {
+  if (!isSupportedAdminCollection(collection)) {
     return null;
   }
 
-  return MODELS[collection.toLowerCase()];
+  return MODELS[collection];
 }
 
 function errorResponse(status: number, errorType: AdminErrorType, message: string, details?: Record<string, unknown>) {
@@ -157,10 +150,21 @@ export async function POST(req: NextRequest) {
     return errorResponse(400, "validation", "A valid content payload is required.");
   }
 
+  if (!isSupportedAdminCollection(collection)) {
+    return errorResponse(400, "validation", "The requested collection is invalid.");
+  }
+
+  const validation = validateContentData(collection, data);
+  if (!validation.success) {
+    return errorResponse(422, "validation", "Please correct the highlighted fields and try again.", {
+      fieldErrors: validation.fieldErrors,
+    });
+  }
+
   await dbConnect();
 
   try {
-    const newItem = await Model.create(normalizeData(data));
+    const newItem = await Model.create(normalizeData(validation.data));
     revalidatePath("/", "layout");
 
     return NextResponse.json({ success: true, data: newItem, message: "Item created successfully." }, { status: 201 });
@@ -199,10 +203,21 @@ export async function PUT(req: NextRequest) {
     return errorResponse(400, "validation", "A valid content payload is required.");
   }
 
+  if (!isSupportedAdminCollection(collection)) {
+    return errorResponse(400, "validation", "The requested collection is invalid.");
+  }
+
+  const validation = validateContentData(collection, data);
+  if (!validation.success) {
+    return errorResponse(422, "validation", "Please correct the highlighted fields and try again.", {
+      fieldErrors: validation.fieldErrors,
+    });
+  }
+
   await dbConnect();
 
   try {
-    const updatedItem = await Model.findByIdAndUpdate(id, normalizeData(data), {
+    const updatedItem = await Model.findByIdAndUpdate(id, normalizeData(validation.data), {
       new: true,
       runValidators: true,
     });

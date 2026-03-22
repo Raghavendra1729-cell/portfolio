@@ -1,12 +1,27 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, ExternalLink, Github } from "lucide-react";
-import { RevealSection } from "@/components/Reveal";
+
+type ProjectLink = {
+  name?: string;
+  url?: string;
+};
+
+type ProjectDetailRecord = {
+  title: string;
+  description?: string;
+  techStack?: string[];
+  link?: string;
+  repo?: string;
+  links?: ProjectLink[];
+  images?: string[];
+};
 
 interface ProjectDetailProps {
-  project: any;
+  project: ProjectDetailRecord;
 }
 
 const container = {
@@ -76,9 +91,9 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
               <Github className="w-4 h-4" /> Source Code
             </a>
           )}
-          {project.links?.map((l: any, i: number) => (
+          {project.links?.map((l, i: number) => (
             <a
-              key={i}
+              key={`${l.url || l.name || "project-link"}-${i}`}
               href={l.url}
               target="_blank"
               rel="noopener noreferrer"
@@ -101,10 +116,13 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
                 whileHover={{ scale: 1.02 }}
                 transition={{ duration: 0.3 }}
               >
-                <img
+                <Image
                   src={img}
                   alt={`${project.title} screenshot ${i + 1}`}
-                  className="w-full h-auto"
+                  width={1200}
+                  height={720}
+                  unoptimized
+                  className="h-auto w-full"
                 />
               </motion.div>
             ))}

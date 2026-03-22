@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from 'mongoose';
 
 const ExperienceSchema = new Schema({
   role: { type: String, required: true }, // e.g. SDE Intern

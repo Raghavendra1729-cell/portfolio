@@ -2,10 +2,21 @@ import { getData } from "@/lib/data";
 import { Briefcase } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
 
+type ExperienceRecord = {
+  _id: string;
+  role: string;
+  company: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  description?: string[];
+  technologies?: string[];
+};
+
 export const revalidate = 3600;
 
 export default async function ExperiencePage() {
-  const experience = await getData("experience");
+  const experience = (await getData("experience")) as ExperienceRecord[];
 
   return (
     <main className="relative pt-32 pb-24 px-6">
@@ -29,7 +40,7 @@ export default async function ExperiencePage() {
           <div className="absolute left-3 md:left-5 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500 via-indigo-500/30 to-transparent" />
 
           <div className="space-y-10">
-            {experience.map((exp: any, idx: number) => (
+            {experience.map((exp, idx) => (
               <RevealSection
                 key={exp._id}
                 delay={idx * 0.1}

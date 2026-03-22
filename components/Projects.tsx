@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ExternalLink } from "lucide-react";
@@ -79,10 +80,12 @@ export default function Projects({
                 {/* Image */}
                 <div className="relative h-44 w-full bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden">
                   {project.images?.[0] ? (
-                    <img
+                    <Image
                       src={project.images[0]}
                       alt={project.title}
-                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="h-full w-full flex items-center justify-center">

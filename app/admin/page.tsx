@@ -14,27 +14,20 @@ import {
 } from "@/components/ui/dialog";
 import {
   Award,
-  Briefcase,
   Edit3,
-  FolderGit2,
-  GraduationCap,
   LayoutDashboard,
   LogOut,
   Plus,
   Search,
   Trash2,
-  User,
   Code,
 } from "lucide-react";
+import { ADMIN_COLLECTIONS, type AdminCollectionId } from "@/lib/content-schema";
 
-const COLLECTIONS = [
-  { id: "project", label: "Projects", icon: FolderGit2 },
-  { id: "experience", label: "Experience", icon: Briefcase },
-  { id: "education", label: "Education", icon: GraduationCap },
-  { id: "skill", label: "Skills", icon: Code },
-  { id: "achievement", label: "Achievements", icon: Award },
-  { id: "cpprofile", label: "CP Profiles", icon: User },
-];
+const COLLECTION_ICONS: Record<AdminCollectionId, typeof Award> = {
+  achievement: Award,
+  skill: Code,
+};
 
 type AdminItem = {
   _id: string;
@@ -61,7 +54,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("project");
+  const [activeTab, setActiveTab] = useState<AdminCollectionId>("achievement");
 
   const [items, setItems] = useState<AdminItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -279,7 +272,7 @@ export default function AdminPage() {
     return <AdminLogin onLogin={handleLogin} statusMessage={authMessage} />;
   }
 
-  const ActiveIcon = COLLECTIONS.find((collection) => collection.id === activeTab)?.icon || LayoutDashboard;
+  const ActiveIcon = COLLECTION_ICONS[activeTab] || LayoutDashboard;
 
   return (
     <>
@@ -297,8 +290,8 @@ export default function AdminPage() {
 
           <nav className="flex-1 space-y-1 overflow-y-auto p-4">
             <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Content Modules</p>
-            {COLLECTIONS.map((col) => {
-              const Icon = col.icon;
+            {ADMIN_COLLECTIONS.map((col) => {
+              const Icon = COLLECTION_ICONS[col.id];
               const isActive = activeTab === col.id;
               return (
                 <button

@@ -2,10 +2,16 @@ import { getData } from "@/lib/data";
 import { Code2, Layers } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
 
+type SkillRecord = {
+  _id: string;
+  category: string;
+  items: string[];
+};
+
 export const revalidate = 3600;
 
 export default async function SkillsPage() {
-  const skills = await getData("skill");
+  const skills = (await getData("skill")) as SkillRecord[];
 
   return (
     <main className="relative pt-32 pb-24 px-6">
@@ -23,7 +29,7 @@ export default async function SkillsPage() {
         </RevealSection>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {skills.map((skill: any, idx: number) => (
+          {skills.map((skill, idx) => (
             <RevealSection key={skill._id} delay={idx * 0.05}>
               <div className="group relative h-full overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/20 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/5">
                 {/* Hover glow */}

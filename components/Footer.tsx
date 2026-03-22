@@ -1,17 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Github, Linkedin, Mail, ArrowUpRight } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Github, Linkedin, Mail } from "lucide-react";
+import { publicNavItems, siteConfig } from "@/lib/site-config";
 
 export default function Footer() {
+  const pathname = usePathname();
   const currentYear = new Date().getFullYear();
 
   const socials = [
-    { href: "https://github.com/raghavendra1729-cell", icon: Github, label: "GitHub" },
-    { href: "https://linkedin.com/in/yourusername", icon: Linkedin, label: "LinkedIn" },
-    { href: "mailto:your.email@example.com", icon: Mail, label: "Email" },
+    { href: siteConfig.githubHref, icon: Github, label: "GitHub" },
+    { href: siteConfig.linkedinHref, icon: Linkedin, label: "LinkedIn" },
+    { href: siteConfig.emailHref, icon: Mail, label: "Email" },
   ];
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <footer className="relative border-t border-white/5 mt-auto">
@@ -22,12 +28,20 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left">
             <p className="font-bold text-xl text-white">
-              Raghavendra<span className="gradient-text">.</span>
+              {siteConfig.name}<span className="gradient-text">.</span>
             </p>
             <p className="text-sm text-slate-500 mt-1">
-              Backend Engineer & Problem Solver
+              {siteConfig.role}
             </p>
           </div>
+
+          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-slate-400">
+            {publicNavItems.filter((item) => item.href !== "/").map((item) => (
+              <Link key={item.href} href={item.href} className="transition hover:text-white">
+                {item.label}
+              </Link>
+            ))}
+          </nav>
 
           <div className="flex gap-3">
             {socials.map(({ href, icon: Icon, label }) => (
@@ -47,8 +61,8 @@ export default function Footer() {
 
       <div className="border-t border-white/5 py-6 text-center text-xs text-slate-600 flex justify-center gap-4">
         <span>© {currentYear} All rights reserved.</span>
-        <Link href="/admin" className="hover:text-slate-400 transition">
-          Admin
+        <Link href="/contact" className="hover:text-slate-400 transition">
+          Contact
         </Link>
       </div>
     </footer>

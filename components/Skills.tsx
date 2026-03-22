@@ -1,4 +1,10 @@
-export default function Skills({ data }: { data: any[] }) {
+type SkillCard = {
+  _id: string;
+  category: string;
+  items: string[];
+};
+
+export default function Skills({ data }: { data: SkillCard[] }) {
   if (!data || data.length === 0) return null;
 
   return (

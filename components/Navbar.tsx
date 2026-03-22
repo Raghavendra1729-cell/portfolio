@@ -5,16 +5,8 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { publicNavItems, siteConfig } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
-
-const NAV_ITEMS = [
-  { label: "Home", href: "/" },
-  { label: "About", href: "/about" },
-  { label: "Experience", href: "/experience" },
-  { label: "Projects", href: "/projects" },
-  { label: "Skills", href: "/skills" },
-  { label: "CP Stats", href: "/cp" },
-];
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -26,6 +18,10 @@ export default function Navbar() {
     window.addEventListener("scroll", handler, { passive: true });
     return () => window.removeEventListener("scroll", handler);
   }, []);
+
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <motion.header
@@ -43,7 +39,7 @@ export default function Navbar() {
         {/* Logo */}
         <Link href="/" className="relative group">
           <span className="font-bold text-2xl tracking-tight text-white">
-            Raghavendra
+            {siteConfig.name}
             <span className="gradient-text">.</span>
           </span>
           <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-gradient-to-r from-indigo-500 to-cyan-400 group-hover:w-full transition-all duration-300" />
@@ -51,7 +47,7 @@ export default function Navbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-1">
-          {NAV_ITEMS.map((item) => {
+          {publicNavItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -97,7 +93,7 @@ export default function Navbar() {
             className="md:hidden overflow-hidden bg-slate-950/95 backdrop-blur-xl border-b border-white/5"
           >
             <div className="p-4 flex flex-col gap-1">
-              {NAV_ITEMS.map((item, i) => (
+              {publicNavItems.map((item, i) => (
                 <motion.div
                   key={item.href}
                   initial={{ opacity: 0, x: -20 }}

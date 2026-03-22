@@ -1,10 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AlertCircle, GripVertical, Image as ImageIcon, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import FileUpload from "./FileUpload";
+import {
+  type AdminCollectionId,
+  validateContentData,
+} from "@/lib/content-schema";
 import { cn } from "@/lib/utils";
 
 export type ItemFormSubmitResult = {
@@ -16,19 +20,10 @@ export type ItemFormSubmitResult = {
 
 interface ItemFormProps {
   initialData?: Record<string, unknown>;
-  collection: string;
+  collection: AdminCollectionId;
   onSubmit: (data: Record<string, unknown>) => Promise<ItemFormSubmitResult>;
   onCancel: () => void;
 }
-
-const REQUIRED_FIELDS: Record<string, string[]> = {
-  project: ["title"],
-  experience: ["role", "company"],
-  education: ["institution", "degree"],
-  skill: ["category"],
-  achievement: ["title"],
-  cpprofile: ["platform"],
-};
 
 const URL_FIELDS = new Set(["link", "repo", "profileUrl"]);
 
@@ -56,17 +51,6 @@ function normalizeInitialData(collection: string, data?: Record<string, unknown>
     return {};
   }
 
-  if (collection === "project") {
-    const links = Array.isArray(data.links)
-      ? (data.links as Array<{ name?: string; url?: string }>).filter(Boolean)
-      : [];
-    return {
-      ...data,
-      link: links.find((item) => item.name?.toLowerCase().includes("live"))?.url || "",
-      repo: links.find((item) => item.name?.toLowerCase().includes("git"))?.url || "",
-    };
-  }
-
   if (collection === "achievement") {
     const links = Array.isArray(data.links)
       ? (data.links as Array<{ url?: string }>).filter(Boolean)
@@ -77,43 +61,15 @@ function normalizeInitialData(collection: string, data?: Record<string, unknown>
     };
   }
 
-  if (collection === "cpprofile") {
-    return {
-      ...data,
-      link: typeof data.profileUrl === "string" ? data.profileUrl : "",
-    };
-  }
-
   return data;
 }
 
 function normalizeSubmissionData(collection: string, data: Record<string, unknown>) {
-  if (collection === "project") {
-    const link = getStringValue(data.link).trim();
-    const repo = getStringValue(data.repo).trim();
-
-    return {
-      ...data,
-      links: [
-        link ? { name: "Live Demo", url: link } : null,
-        repo ? { name: "GitHub", url: repo } : null,
-      ].filter(Boolean),
-    };
-  }
-
   if (collection === "achievement") {
     const link = getStringValue(data.link).trim();
     return {
       ...data,
       links: link ? [{ name: "Reference", url: link }] : [],
-    };
-  }
-
-  if (collection === "cpprofile") {
-    const profileUrl = getStringValue(data.link || data.profileUrl).trim();
-    return {
-      ...data,
-      profileUrl,
     };
   }
 
@@ -127,8 +83,6 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
   const [errorType, setErrorType] = useState<ItemFormSubmitResult["errorType"]>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
-
-  const requiredFields = useMemo(() => REQUIRED_FIELDS[collection] ?? [], [collection]);
 
   const updateField = (name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -189,18 +143,9 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
   };
 
   const validateForm = () => {
-    const nextErrors: Record<string, string> = {};
+    const normalizedData = normalizeSubmissionData(collection, formData);
 
-    for (const field of requiredFields) {
-      const value = formData[field];
-      const isMissing = Array.isArray(value) ? value.length === 0 : !String(value || "").trim();
-
-      if (isMissing) {
-        nextErrors[field] = "This field is required.";
-      }
-    }
-
-    for (const [field, value] of Object.entries(formData)) {
+    for (const [field, value] of Object.entries(normalizedData)) {
       if (!URL_FIELDS.has(field) || !value || typeof value !== "string") {
         continue;
       }
@@ -208,18 +153,22 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
       try {
         new URL(value);
       } catch {
-        nextErrors[field] = "Enter a valid URL, including http:// or https://.";
+        setFieldErrors({ [field]: "Enter a valid URL, including http:// or https://." });
+        return null;
       }
     }
 
-    setFieldErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
+    const validation = validateContentData(collection, normalizedData);
+    setFieldErrors(validation.fieldErrors);
+    return validation.success ? validation.data : null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const validatedData = validateForm();
+
+    if (!validatedData) {
       setErrorType("validation");
       setFormError("Please correct the highlighted fields before saving.");
       toast.error("Validation failed", {
@@ -232,7 +181,7 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     setFormError(null);
     setErrorType(undefined);
 
-    const result = await onSubmit(normalizeSubmissionData(collection, formData));
+    const result = await onSubmit(validatedData);
 
     if (!result.success) {
       setFieldErrors(result.fieldErrors || {});
@@ -364,9 +313,9 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "skill" && (
           <>
-            <InputGroup
-              label="Category Name"
-              name="category"
+              <InputGroup
+                label="Category Name"
+                name="category"
               value={getStringValue(formData.category)}
               onChange={handleChange}
               placeholder="Frontend, Backend, etc."
@@ -374,13 +323,14 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
               error={fieldErrors.category}
             />
             <ArrayInputGroup
-              label="Skill Items"
-              name="items"
-              value={getStringArrayValue(formData.items)}
-              onChange={(e) => handleArrayChange(e, "items")}
-              placeholder="React&#10;TypeScript&#10;CSS"
-              error={fieldErrors.items}
-            />
+                label="Skill Items"
+                name="items"
+                value={getStringArrayValue(formData.items)}
+                onChange={(e) => handleArrayChange(e, "items")}
+                placeholder="React&#10;TypeScript&#10;CSS"
+                required
+                error={fieldErrors.items}
+              />
           </>
         )}
 
@@ -391,7 +341,7 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
               <InputGroup label="Organization" name="organization" value={getStringValue(formData.organization)} onChange={handleChange} error={fieldErrors.organization} />
             </div>
             <InputGroup label="Date Received" name="date" value={getStringValue(formData.date)} onChange={handleChange} error={fieldErrors.date} />
-            <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} error={fieldErrors.description} />
+            <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} required error={fieldErrors.description} />
             <InputGroup label="Certificate Link" name="link" type="url" value={getStringValue(formData.link)} onChange={handleChange} error={fieldErrors.link} />
 
             <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
@@ -433,17 +383,6 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
           </>
         )}
 
-        {collection === "cpprofile" && (
-          <>
-            <InputGroup label="Platform" name="platform" value={getStringValue(formData.platform)} onChange={handleChange} placeholder="LeetCode" required error={fieldErrors.platform} />
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <InputGroup label="Current Rating" name="rating" value={getStringValue(formData.rating)} onChange={handleChange} error={fieldErrors.rating} />
-              <InputGroup label="Max Rating" name="maxRating" value={getStringValue(formData.maxRating)} onChange={handleChange} error={fieldErrors.maxRating} />
-            </div>
-            <InputGroup label="Rank / Title" name="rank" value={getStringValue(formData.rank)} onChange={handleChange} error={fieldErrors.rank} />
-            <InputGroup label="Profile Link" name="link" type="url" value={getStringValue(formData.link || formData.profileUrl)} onChange={handleChange} error={fieldErrors.link || fieldErrors.profileUrl} />
-          </>
-        )}
       </div>
 
       <div className="mt-10 flex gap-4 border-t pt-6">
@@ -575,14 +514,15 @@ interface TextAreaGroupProps {
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   rows?: number;
   placeholder?: string;
+  required?: boolean;
   error?: string;
 }
 
-function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder, error }: TextAreaGroupProps) {
+function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder, required, error }: TextAreaGroupProps) {
   return (
     <div className="group w-full">
       <label className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
-        {label}
+        {label} {required && <span className="text-destructive">*</span>}
       </label>
       <textarea
         name={name}
@@ -606,14 +546,17 @@ interface ArrayInputGroupProps {
   value: string[] | string;
   onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   placeholder?: string;
+  required?: boolean;
   error?: string;
 }
 
-function ArrayInputGroup({ label, name, value, onChange, placeholder, error }: ArrayInputGroupProps) {
+function ArrayInputGroup({ label, name, value, onChange, placeholder, required, error }: ArrayInputGroupProps) {
   return (
     <div className="group w-full">
       <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
-        {label}
+        <span>
+          {label} {required && <span className="text-destructive">*</span>}
+        </span>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/70">One item per line</span>
       </label>
       <textarea

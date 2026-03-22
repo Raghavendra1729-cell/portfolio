@@ -1,37 +1,38 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, ChevronDown, Github, Linkedin, Mail, Play } from "lucide-react";
+import { ArrowRight, ChevronDown, Github, Linkedin, Mail } from "lucide-react";
 import Link from "next/link";
 import HeroBackgroundVideo from "@/components/home/HeroBackgroundVideo";
+import { siteConfig } from "@/lib/site-config";
 
-const heroName = "Raghavendra".split("");
+const heroName = siteConfig.name.split("");
 
 const statusPills = [
-  "Backend Systems",
-  "ML Interfaces",
-  "Competitive Programming",
+  "Backend Engineering",
+  "Distributed Systems",
+  "Problem Solving",
 ];
 
 const signalBars = [
-  { label: "Realtime", value: "Socket sync", tone: "cyan" },
-  { label: "Inference", value: "86% confidence", tone: "violet" },
-  { label: "Systems", value: "Threads online", tone: "emerald" },
+  { label: "Focus", value: "Backend systems", tone: "cyan" },
+  { label: "Strength", value: "Clean execution", tone: "violet" },
+  { label: "Approach", value: "Product thinking", tone: "emerald" },
 ];
 
 const socialLinks = [
   {
-    href: "https://github.com/raghavendra1729-cell",
+    href: siteConfig.githubHref,
     label: "GitHub",
     icon: Github,
   },
   {
-    href: "https://www.linkedin.com",
+    href: siteConfig.linkedinHref,
     label: "LinkedIn",
     icon: Linkedin,
   },
   {
-    href: "mailto:your.email@example.com",
+    href: siteConfig.emailHref,
     label: "Email",
     icon: Mail,
   },
@@ -55,7 +56,7 @@ export default function HeroSection() {
             className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-slate-950/45 px-4 py-2 font-mono text-[0.72rem] uppercase tracking-[0.32em] text-slate-200 shadow-[0_12px_35px_rgba(2,6,23,0.38)] backdrop-blur-xl"
           >
             <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.9)]" />
-            Command Center Portfolio
+            Software Engineer Portfolio
           </motion.div>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -101,9 +102,9 @@ export default function HeroSection() {
             transition={{ delay: 0.8, duration: 0.48, ease: "easeOut" }}
             className="mt-8 max-w-2xl text-lg leading-8 text-slate-200/82 sm:text-xl"
           >
-            Backend-heavy product engineer crafting premium interfaces, realtime systems,
-            and data-driven experiences that feel more like a futuristic control room
-            than a static portfolio.
+            Backend-focused engineer with a strong interest in distributed systems,
+            scalable application design, and building products that feel reliable,
+            polished, and useful.
           </motion.p>
 
           <motion.div
@@ -113,18 +114,17 @@ export default function HeroSection() {
             className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap"
           >
             <Link
-              href="#projects-showcase"
+              href="/about"
               className="group inline-flex items-center justify-center gap-2 rounded-full border border-cyan-300/30 bg-cyan-300 px-7 py-3.5 text-sm font-semibold text-slate-950 shadow-[0_0_45px_rgba(34,211,238,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_0_65px_rgba(34,211,238,0.45)]"
             >
-              Explore the build
+              View profile
               <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </Link>
             <Link
-              href="/admin"
+              href="/contact"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/6 px-7 py-3.5 text-sm font-medium text-white backdrop-blur-xl transition-all duration-300 hover:border-fuchsia-400/35 hover:bg-fuchsia-400/10"
             >
-              <Play className="h-4 w-4" />
-              Open control room
+              Contact me
             </Link>
           </motion.div>
 
@@ -162,14 +162,14 @@ export default function HeroSection() {
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <div>
                 <p className="font-mono text-[0.72rem] uppercase tracking-[0.35em] text-slate-400">
-                  Live System Feed
+                  Professional Snapshot
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-white">
-                  Portfolio Runtime
+                  Core strengths
                 </h2>
               </div>
               <div className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-200">
-                All systems nominal
+                Open to opportunities
               </div>
             </div>
 
@@ -220,10 +220,10 @@ export default function HeroSection() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-mono text-[0.7rem] uppercase tracking-[0.3em] text-slate-500">
-                    Scroll vector
+                    Explore
                   </p>
                   <p className="mt-2 text-base text-white">
-                    Projects, HUD, and admin modules are scaffolded below.
+                    About, skills, achievements, and contact are available in the navigation.
                   </p>
                 </div>
                 <motion.div
@@ -246,7 +246,7 @@ export default function HeroSection() {
         className="absolute bottom-8 left-1/2 z-10 -translate-x-1/2"
       >
         <motion.a
-          href="#projects-showcase"
+          href="/about"
           animate={reducedMotion ? undefined : { y: [0, 8, 0] }}
           transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
           className="group flex flex-col items-center gap-2 text-slate-300/70"
