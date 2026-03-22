@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { AlertCircle, GripVertical, Image as ImageIcon, Save, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 import FileUpload from "./FileUpload";
-import { AlertCircle, Image as ImageIcon, Save, Trash2, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type ItemFormSubmitResult = {
   success: boolean;
@@ -28,7 +30,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   cpprofile: ["platform"],
 };
 
-const URL_FIELDS = new Set(["link", "repo"]);
+const URL_FIELDS = new Set(["link", "repo", "profileUrl"]);
 
 function getStringValue(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
@@ -42,12 +44,89 @@ function getStringArrayValue(value: unknown) {
   return value.filter((item): item is string => typeof item === "string");
 }
 
+function reorderItems<T>(items: T[], startIndex: number, endIndex: number) {
+  const nextItems = [...items];
+  const [moved] = nextItems.splice(startIndex, 1);
+  nextItems.splice(endIndex, 0, moved);
+  return nextItems;
+}
+
+function normalizeInitialData(collection: string, data?: Record<string, unknown>) {
+  if (!data) {
+    return {};
+  }
+
+  if (collection === "project") {
+    const links = Array.isArray(data.links)
+      ? (data.links as Array<{ name?: string; url?: string }>).filter(Boolean)
+      : [];
+    return {
+      ...data,
+      link: links.find((item) => item.name?.toLowerCase().includes("live"))?.url || "",
+      repo: links.find((item) => item.name?.toLowerCase().includes("git"))?.url || "",
+    };
+  }
+
+  if (collection === "achievement") {
+    const links = Array.isArray(data.links)
+      ? (data.links as Array<{ url?: string }>).filter(Boolean)
+      : [];
+    return {
+      ...data,
+      link: links[0]?.url || "",
+    };
+  }
+
+  if (collection === "cpprofile") {
+    return {
+      ...data,
+      link: typeof data.profileUrl === "string" ? data.profileUrl : "",
+    };
+  }
+
+  return data;
+}
+
+function normalizeSubmissionData(collection: string, data: Record<string, unknown>) {
+  if (collection === "project") {
+    const link = getStringValue(data.link).trim();
+    const repo = getStringValue(data.repo).trim();
+
+    return {
+      ...data,
+      links: [
+        link ? { name: "Live Demo", url: link } : null,
+        repo ? { name: "GitHub", url: repo } : null,
+      ].filter(Boolean),
+    };
+  }
+
+  if (collection === "achievement") {
+    const link = getStringValue(data.link).trim();
+    return {
+      ...data,
+      links: link ? [{ name: "Reference", url: link }] : [],
+    };
+  }
+
+  if (collection === "cpprofile") {
+    const profileUrl = getStringValue(data.link || data.profileUrl).trim();
+    return {
+      ...data,
+      profileUrl,
+    };
+  }
+
+  return data;
+}
+
 export default function ItemForm({ initialData, collection, onSubmit, onCancel }: ItemFormProps) {
-  const [formData, setFormData] = useState<Record<string, unknown>>(initialData || {});
+  const [formData, setFormData] = useState<Record<string, unknown>>(normalizeInitialData(collection, initialData));
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [errorType, setErrorType] = useState<ItemFormSubmitResult["errorType"]>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draggedImageIndex, setDraggedImageIndex] = useState<number | null>(null);
 
   const requiredFields = useMemo(() => REQUIRED_FIELDS[collection] ?? [], [collection]);
 
@@ -84,16 +163,29 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
   };
 
   const handleMultipleImageUpload = (url: string, field: string) => {
-    const currentImages = Array.isArray(formData[field]) ? formData[field] : [];
+    const currentImages = Array.isArray(formData[field]) ? (formData[field] as string[]) : [];
+
+    if (!url) {
+      return;
+    }
+
     updateField(field, [...currentImages, url]);
   };
 
   const handleRemoveImage = (index: number, field: string) => {
-    const currentImages = Array.isArray(formData[field]) ? formData[field] : [];
+    const currentImages = Array.isArray(formData[field]) ? (formData[field] as string[]) : [];
     updateField(
       field,
-      currentImages.filter((_: unknown, imageIndex: number) => imageIndex !== index)
+      currentImages.filter((_: string, imageIndex: number) => imageIndex !== index)
     );
+    toast.info("Gallery image removed", {
+      description: "The image was removed from the current record.",
+    });
+  };
+
+  const handleReorderImage = (fromIndex: number, toIndex: number, field: string) => {
+    const currentImages = Array.isArray(formData[field]) ? (formData[field] as string[]) : [];
+    updateField(field, reorderItems(currentImages, fromIndex, toIndex));
   };
 
   const validateForm = () => {
@@ -130,6 +222,9 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     if (!validateForm()) {
       setErrorType("validation");
       setFormError("Please correct the highlighted fields before saving.");
+      toast.error("Validation failed", {
+        description: "Please correct the highlighted fields before saving.",
+      });
       return;
     }
 
@@ -137,38 +232,46 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     setFormError(null);
     setErrorType(undefined);
 
-    const result = await onSubmit(formData);
+    const result = await onSubmit(normalizeSubmissionData(collection, formData));
 
     if (!result.success) {
       setFieldErrors(result.fieldErrors || {});
       setErrorType(result.errorType);
-      setFormError(
+      const nextMessage =
         result.message ||
-          (result.errorType === "auth"
-            ? "Your admin session has expired. Please sign in again."
-            : result.errorType === "validation"
-              ? "Please correct the highlighted fields before trying again."
-              : "We could not save this item. Please try again.")
-      );
+        (result.errorType === "auth"
+          ? "Your admin session has expired. Please sign in again."
+          : result.errorType === "validation"
+            ? "Please correct the highlighted fields before trying again."
+            : "We could not save this item. Please try again.");
+      setFormError(nextMessage);
+      toast.error("Save failed", {
+        description: nextMessage,
+      });
+      setIsSubmitting(false);
+      return;
     }
 
+    toast.success(initialData ? "Entry updated" : "Entry created", {
+      description: `Your ${collection} record was saved successfully.`,
+    });
     setIsSubmitting(false);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-card p-8 rounded-xl border shadow-sm animate-fade-up">
-      <div className="flex justify-between items-center mb-8 border-b pb-4">
-        <h3 className="font-bold text-2xl text-foreground">
-          {initialData ? "Edit" : "Add New"} <span className="text-primary capitalize">{collection}</span>
+    <form onSubmit={handleSubmit} className="animate-fade-up rounded-xl border bg-card p-8 shadow-sm">
+      <div className="mb-8 flex items-center justify-between border-b pb-4">
+        <h3 className="text-2xl font-bold text-foreground">
+          {initialData ? "Edit" : "Add New"} <span className="capitalize text-primary">{collection}</span>
         </h3>
-        <button type="button" onClick={onCancel} className="text-muted-foreground hover:text-foreground transition p-2">
-          <X className="w-5 h-5" />
+        <button type="button" onClick={onCancel} className="p-2 text-muted-foreground hover:text-foreground transition">
+          <X className="h-5 w-5" />
         </button>
       </div>
 
       {formError && (
-        <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+        <div className="mb-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-medium capitalize">{errorType || "Submission"} issue</p>
             <p>{formError}</p>
@@ -191,32 +294,32 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                 error={fieldErrors.techStack}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Live Link" name="link" type="url" value={getStringValue(formData.link)} onChange={handleChange} error={fieldErrors.link} />
               <InputGroup label="GitHub Repo" name="repo" type="url" value={getStringValue(formData.repo)} onChange={handleChange} error={fieldErrors.repo} />
             </div>
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Project Images (Gallery)
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                <ImageIcon className="h-4 w-4" /> Project Images (Gallery)
               </label>
 
-              {Array.isArray(formData.images) && formData.images.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  {formData.images.map((url: string, index: number) => (
-                    <div key={`${url}-${index}`} className="relative group aspect-video overflow-hidden rounded-md">
-                      <Image src={url} alt={`Project ${index + 1}`} fill sizes="(max-width: 768px) 50vw, 25vw" className="w-full h-full object-cover rounded-md border bg-muted" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index, "images")}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm hover:scale-105"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SortableGallery
+                field="images"
+                items={Array.isArray(formData.images) ? (formData.images as string[]) : []}
+                draggedIndex={draggedImageIndex}
+                onDragStart={setDraggedImageIndex}
+                onDrop={(fromIndex, toIndex) => {
+                  handleReorderImage(fromIndex, toIndex, "images");
+                  setDraggedImageIndex(null);
+                  toast.success("Gallery reordered", {
+                    description: "The image order has been updated.",
+                  });
+                }}
+                onDragEnd={() => setDraggedImageIndex(null)}
+                onRemove={(index) => handleRemoveImage(index, "images")}
+                itemLabel="Project"
+              />
 
               <FileUpload label="Add Image" onUpload={(url) => handleMultipleImageUpload(url, "images")} />
             </div>
@@ -225,11 +328,11 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "experience" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Role / Title" name="role" value={getStringValue(formData.role)} onChange={handleChange} required error={fieldErrors.role} />
               <InputGroup label="Company Name" name="company" value={getStringValue(formData.company)} onChange={handleChange} required error={fieldErrors.company} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Start Date" name="startDate" value={getStringValue(formData.startDate)} onChange={handleChange} placeholder="Jan 2024" error={fieldErrors.startDate} />
               <InputGroup label="End Date" name="endDate" value={getStringValue(formData.endDate)} onChange={handleChange} placeholder="Present" error={fieldErrors.endDate} />
             </div>
@@ -252,8 +355,8 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
               error={fieldErrors.technologies}
             />
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4">Company Logo</label>
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 block text-sm font-medium text-foreground">Company Logo</label>
               <FileUpload label="Upload Logo" initialUrl={typeof formData.logo === "string" ? formData.logo : undefined} onUpload={(url) => handleImageUpload(url, "logo")} />
             </div>
           </>
@@ -283,7 +386,7 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
         {collection === "achievement" && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Award Title" name="title" value={getStringValue(formData.title)} onChange={handleChange} required error={fieldErrors.title} />
               <InputGroup label="Organization" name="organization" value={getStringValue(formData.organization)} onChange={handleChange} error={fieldErrors.organization} />
             </div>
@@ -291,27 +394,27 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
             <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} error={fieldErrors.description} />
             <InputGroup label="Certificate Link" name="link" type="url" value={getStringValue(formData.link)} onChange={handleChange} error={fieldErrors.link} />
 
-            <div className="bg-muted/30 p-4 rounded-lg border border-dashed border-border">
-              <label className="block text-sm font-medium text-foreground mb-4 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4" /> Certificates / Images
+            <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+              <label className="mb-4 flex items-center gap-2 text-sm font-medium text-foreground">
+                <ImageIcon className="h-4 w-4" /> Certificates / Images
               </label>
 
-              {Array.isArray(formData.images) && formData.images.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                  {formData.images.map((url: string, index: number) => (
-                    <div key={`${url}-${index}`} className="relative group aspect-video overflow-hidden rounded-md">
-                      <Image src={url} alt={`Achievement ${index + 1}`} fill sizes="(max-width: 768px) 50vw, 25vw" className="w-full h-full object-cover rounded-md border bg-muted" />
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(index, "images")}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm hover:scale-105"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <SortableGallery
+                field="images"
+                items={Array.isArray(formData.images) ? (formData.images as string[]) : []}
+                draggedIndex={draggedImageIndex}
+                onDragStart={setDraggedImageIndex}
+                onDrop={(fromIndex, toIndex) => {
+                  handleReorderImage(fromIndex, toIndex, "images");
+                  setDraggedImageIndex(null);
+                  toast.success("Gallery reordered", {
+                    description: "The image order has been updated.",
+                  });
+                }}
+                onDragEnd={() => setDraggedImageIndex(null)}
+                onRemove={(index) => handleRemoveImage(index, "images")}
+                itemLabel="Achievement"
+              />
 
               <FileUpload label="Add Image" onUpload={(url) => handleMultipleImageUpload(url, "images")} />
             </div>
@@ -322,7 +425,7 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
           <>
             <InputGroup label="Institution" name="institution" value={getStringValue(formData.institution)} onChange={handleChange} required error={fieldErrors.institution} />
             <InputGroup label="Degree / Certification" name="degree" value={getStringValue(formData.degree)} onChange={handleChange} required error={fieldErrors.degree} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Start Date" name="startDate" value={getStringValue(formData.startDate)} onChange={handleChange} error={fieldErrors.startDate} />
               <InputGroup label="End Date" name="endDate" value={getStringValue(formData.endDate)} onChange={handleChange} error={fieldErrors.endDate} />
             </div>
@@ -333,35 +436,101 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
         {collection === "cpprofile" && (
           <>
             <InputGroup label="Platform" name="platform" value={getStringValue(formData.platform)} onChange={handleChange} placeholder="LeetCode" required error={fieldErrors.platform} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <InputGroup label="Current Rating" name="rating" value={getStringValue(formData.rating)} onChange={handleChange} error={fieldErrors.rating} />
               <InputGroup label="Max Rating" name="maxRating" value={getStringValue(formData.maxRating)} onChange={handleChange} error={fieldErrors.maxRating} />
             </div>
             <InputGroup label="Rank / Title" name="rank" value={getStringValue(formData.rank)} onChange={handleChange} error={fieldErrors.rank} />
-            <InputGroup label="Profile Link" name="link" type="url" value={getStringValue(formData.link)} onChange={handleChange} error={fieldErrors.link} />
+            <InputGroup label="Profile Link" name="link" type="url" value={getStringValue(formData.link || formData.profileUrl)} onChange={handleChange} error={fieldErrors.link || fieldErrors.profileUrl} />
           </>
         )}
       </div>
 
-      <div className="flex gap-4 mt-10 pt-6 border-t">
+      <div className="mt-10 flex gap-4 border-t pt-6">
         <button
           type="submit"
           disabled={isSubmitting}
-          className="flex-1 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition flex items-center justify-center gap-2 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+          className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 font-medium text-primary-foreground shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          <Save className={`w-4 h-4 ${isSubmitting ? "animate-pulse" : ""}`} />
+          <Save className={`h-4 w-4 ${isSubmitting ? "animate-pulse" : ""}`} />
           {isSubmitting ? "Saving..." : "Save Details"}
         </button>
         <button
           type="button"
           onClick={onCancel}
           disabled={isSubmitting}
-          className="px-6 py-3 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition font-medium disabled:opacity-70 disabled:cursor-not-allowed"
+          className="rounded-lg bg-secondary px-6 py-3 font-medium text-secondary-foreground transition hover:bg-secondary/80 disabled:cursor-not-allowed disabled:opacity-70"
         >
           Cancel
         </button>
       </div>
     </form>
+  );
+}
+
+function SortableGallery({
+  field,
+  items,
+  draggedIndex,
+  onDragStart,
+  onDrop,
+  onDragEnd,
+  onRemove,
+  itemLabel,
+}: {
+  field: string;
+  items: string[];
+  draggedIndex: number | null;
+  onDragStart: (index: number) => void;
+  onDrop: (fromIndex: number, toIndex: number) => void;
+  onDragEnd: () => void;
+  onRemove: (index: number) => void;
+  itemLabel: string;
+}) {
+  if (!items.length) {
+    return null;
+  }
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-4 md:grid-cols-4">
+      {items.map((url, index) => (
+        <div
+          key={`${field}-${url}-${index}`}
+          draggable
+          onDragStart={() => onDragStart(index)}
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={() => {
+            if (draggedIndex === null || draggedIndex === index) {
+              return;
+            }
+            onDrop(draggedIndex, index);
+          }}
+          onDragEnd={onDragEnd}
+          className={cn(
+            "group relative aspect-video overflow-hidden rounded-md border bg-muted",
+            draggedIndex === index && "opacity-60 ring-2 ring-primary/40"
+          )}
+        >
+          <Image
+            src={url}
+            alt={`${itemLabel} ${index + 1}`}
+            fill
+            sizes="(max-width: 768px) 50vw, 25vw"
+            className="rounded-md object-cover"
+          />
+          <div className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full border border-white/15 bg-slate-950/70 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-white">
+            <GripVertical className="h-3 w-3" /> Drag
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            className="absolute right-1 top-1 rounded-full bg-destructive p-1.5 text-destructive-foreground opacity-0 shadow-sm transition group-hover:opacity-100 hover:scale-105"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -378,8 +547,8 @@ interface InputGroupProps {
 
 function InputGroup({ label, name, value, onChange, type = "text", placeholder, required, error }: InputGroupProps) {
   return (
-    <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1 transition-colors group-focus-within:text-primary">
+    <div className="group w-full">
+      <label className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label} {required && <span className="text-destructive">*</span>}
       </label>
       <input
@@ -389,8 +558,8 @@ function InputGroup({ label, name, value, onChange, type = "text", placeholder, 
         onChange={onChange}
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
-        className={`w-full p-3.5 bg-background border rounded-xl focus:ring-2 outline-none transition-all shadow-sm text-sm placeholder:text-muted-foreground/50 hover:border-primary/50 ${
-          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:ring-primary/20 focus:border-primary"
+        className={`w-full rounded-xl border bg-background p-3.5 text-sm shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-2 focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
         }`}
         required={required}
       />
@@ -411,8 +580,8 @@ interface TextAreaGroupProps {
 
 function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder, error }: TextAreaGroupProps) {
   return (
-    <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1 transition-colors group-focus-within:text-primary">
+    <div className="group w-full">
+      <label className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label}
       </label>
       <textarea
@@ -422,8 +591,8 @@ function TextAreaGroup({ label, name, value, onChange, rows = 4, placeholder, er
         rows={rows}
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
-        className={`w-full p-3.5 bg-background border rounded-xl focus:ring-2 outline-none transition-all shadow-sm text-sm resize-y placeholder:text-muted-foreground/50 hover:border-primary/50 ${
-          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:ring-primary/20 focus:border-primary"
+        className={`w-full resize-y rounded-xl border bg-background p-3.5 text-sm shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-2 focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
         }`}
       />
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
@@ -442,10 +611,10 @@ interface ArrayInputGroupProps {
 
 function ArrayInputGroup({ label, name, value, onChange, placeholder, error }: ArrayInputGroupProps) {
   return (
-    <div className="w-full group">
-      <label className="block text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex justify-between items-center transition-colors group-focus-within:text-primary">
+    <div className="group w-full">
+      <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors group-focus-within:text-primary">
         {label}
-        <span className="text-[10px] text-muted-foreground/70 font-medium px-2 py-0.5 bg-muted rounded-full">One item per line</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/70">One item per line</span>
       </label>
       <textarea
         name={name}
@@ -454,8 +623,8 @@ function ArrayInputGroup({ label, name, value, onChange, placeholder, error }: A
         rows={5}
         placeholder={placeholder}
         aria-invalid={Boolean(error)}
-        className={`w-full p-3.5 bg-background border rounded-xl focus:ring-2 outline-none transition-all shadow-sm text-sm font-mono leading-relaxed placeholder:text-muted-foreground/50 hover:border-primary/50 ${
-          error ? "border-destructive focus:ring-destructive/20" : "border-input focus:ring-primary/20 focus:border-primary"
+        className={`w-full rounded-xl border bg-background p-3.5 font-mono text-sm leading-relaxed shadow-sm outline-none transition-all placeholder:text-muted-foreground/50 hover:border-primary/50 ${
+          error ? "border-destructive focus:ring-2 focus:ring-destructive/20" : "border-input focus:border-primary focus:ring-2 focus:ring-primary/20"
         }`}
       />
       {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
