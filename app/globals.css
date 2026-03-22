@@ -258,6 +258,36 @@ body {
   pointer-events: none;
 }
 
+.hero-video {
+  filter: saturate(0.85) contrast(1.05) brightness(0.48);
+}
+
+.command-grid {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, black 48%, transparent 100%);
+  -webkit-mask-image: radial-gradient(circle at center, black 48%, transparent 100%);
+}
+
+.scanlines {
+  background-image: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.05) 0,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 2px,
+    transparent 6px
+  );
+  background-size: 100% 6px;
+}
+
+.hero-letter {
+  text-shadow:
+    0 0 18px rgba(34, 211, 238, 0.2),
+    0 0 42px rgba(168, 85, 247, 0.12);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
