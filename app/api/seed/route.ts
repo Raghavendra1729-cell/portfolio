@@ -1,20 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
-import Project from '@/models/Project';
-import Experience from '@/models/Experience';
-import Education from '@/models/Education';
-import Skill from '@/models/Skill';
-import Achievement from '@/models/Achievement';
-import CPProfile from '@/models/CPProfile';
+import { NextRequest, NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import { authenticateAdminSecret, isAuthenticated } from "@/lib/auth";
+import Project from "@/models/Project";
+import Experience from "@/models/Experience";
+import Education from "@/models/Education";
+import Skill from "@/models/Skill";
+import Achievement from "@/models/Achievement";
+import CPProfile from "@/models/CPProfile";
 
-// Force dynamic execution so it doesn't cache the response
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
+function authorizeSeedRequest(req: NextRequest) {
+  const suppliedSecret = req.headers.get("x-admin-secret");
+  return isAuthenticated(req) || authenticateAdminSecret(suppliedSecret);
+}
+
+export async function POST(req: NextRequest) {
+  if (!authorizeSeedRequest(req)) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Not authorized to run the seed job.",
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     await dbConnect();
 
-    // 1. CLEAR EXISTING DATA (To prevent duplicates)
     await Promise.all([
       Project.deleteMany({}),
       Experience.deleteMany({}),
@@ -24,151 +38,150 @@ export async function GET(req: NextRequest) {
       CPProfile.deleteMany({}),
     ]);
 
-    // 2. PREPARE DATA
-    
-    // --- SKILLS ---
     const skills = [
       {
-        category: "Languages",
-        items: ["Java", "Python", "JavaScript", "TypeScript", "C++", "SQL"]
-      },
-      {
         category: "Backend",
-        items: ["Node.js", "Express", "Spring Boot", "Django", "Socket.IO", "Kafka"]
+        items: ["Node.js", "Express", "MongoDB", "Socket.IO", "REST API Design", "Redis"],
       },
       {
         category: "Frontend",
-        items: ["React", "Next.js", "Tailwind CSS", "HTML5", "CSS3"]
+        items: ["Next.js", "React", "TypeScript", "Tailwind CSS", "Framer Motion"],
       },
       {
-        category: "Databases",
-        items: ["MongoDB", "PostgreSQL", "Redis", "MySQL"]
+        category: "LLD",
+        items: ["OOP Design", "Concurrency", "HTTP Internals", "System Design Basics"],
       },
       {
-        category: "DevOps & Tools",
-        items: ["Docker", "Git", "GitHub", "AWS (EC2, S3)", "Linux"]
-      }
+        category: "Machine Learning",
+        items: ["Random Forest", "scikit-learn", "Pandas", "Feature Engineering"],
+      },
     ];
 
-    // --- EDUCATION ---
     const education = [
-      {
-        degree: "Bachelor of Science in Computer Science",
-        institution: "BITS Pilani",
-        startDate: "2023",
-        endDate: "2026",
-        grade: "8.5 CGPA",
-        coursework: ["Data Structures", "Algorithms", "Operating Systems", "Computer Networks", "DBMS"]
-      },
       {
         degree: "Software Engineering UG Program",
         institution: "Scaler School of Technology",
         startDate: "2023",
         endDate: "2027",
-        grade: "Top 1%",
-        coursework: ["System Design", "Full Stack Development", "Low Level Design"]
-      }
+        grade: "Top 1% cohort performance",
+      },
     ];
 
-    // --- EXPERIENCE ---
     const experience = [
       {
-        role: "Backend Engineering Intern",
-        company: "TechStartup Inc.",
+        role: "Teaching Assistant Buddy",
+        company: "Scaler School of Technology",
         location: "Remote",
-        startDate: "May 2025",
+        startDate: "2025",
         endDate: "Present",
         current: true,
         description: [
-          "Optimized API latency by 40% using Redis caching strategies.",
-          "Built a real-time notification service using Socket.IO and Node.js.",
-          "Collaborated with the frontend team to integrate RESTful APIs."
+          "Mentored students on backend engineering fundamentals and problem-solving patterns.",
+          "Supported debugging sessions, code reviews, and technical clarification for live coursework.",
         ],
-        technologies: ["Node.js", "Redis", "AWS", "MongoDB"]
-      }
+        technologies: ["Java", "Node.js", "Data Structures", "Algorithms"],
+      },
     ];
 
-    // --- PROJECTS ---
     const projects = [
       {
         title: "Lost n Found",
-        description: "A full-stack platform connecting users to report and recover lost items. Features real-time chat, image uploads, and location-based matching. Built with scalable architecture in mind.",
-        techStack: ["MERN Stack", "Socket.IO", "Cloudinary", "Leaflet Maps"],
+        description:
+          "MERN + Socket.IO platform for reporting, matching, and resolving lost-item cases with real-time updates.",
+        techStack: ["MongoDB", "Express", "React", "Node.js", "Socket.IO"],
         links: [
           { name: "GitHub", url: "https://github.com/raghavendra1729-cell" },
-          { name: "Live Demo", url: "https://lost-n-found-demo.com" }
         ],
         featured: true,
-        startDate: "Jan 2025",
-        endDate: "Feb 2025"
+        startDate: "2025",
+        endDate: "2025",
+      },
+      {
+        title: "Hostel Hub",
+        description:
+          "Inventory app for hostel operations that secured 7th place out of 150+ teams during a hackathon build sprint.",
+        techStack: ["Next.js", "TypeScript", "MongoDB", "Tailwind CSS"],
+        links: [
+          { name: "GitHub", url: "https://github.com/raghavendra1729-cell" },
+        ],
+        featured: true,
+        startDate: "2025",
+        endDate: "2025",
+      },
+      {
+        title: "Sleep Quality Predictor",
+        description:
+          "Random Forest ML project predicting sleep quality with 86% accuracy and a feature-driven analysis workflow.",
+        techStack: ["Python", "scikit-learn", "Pandas", "Matplotlib"],
+        links: [
+          { name: "GitHub", url: "https://github.com/raghavendra1729-cell" },
+        ],
+        featured: false,
+        startDate: "2024",
+        endDate: "2024",
       },
       {
         title: "Multi-threaded HTTP Server",
-        description: "A custom HTTP server built from scratch in Python using low-level socket programming. Handles concurrent client requests using threading and supports basic HTTP methods (GET, POST).",
-        techStack: ["Python", "Socket Programming", "Multi-threading", "Networking"],
+        description:
+          "Python HTTP server built with sockets and worker threads to handle concurrent requests and manual response generation.",
+        techStack: ["Python", "Sockets", "Threading", "HTTP"],
         links: [
-          { name: "GitHub", url: "https://github.com/raghavendra1729-cell" }
-        ],
-        featured: true,
-        startDate: "Nov 2024",
-        endDate: "Dec 2024"
-      },
-      {
-        title: "Sleep Quality Prediction",
-        description: "Machine Learning analysis project utilizing classification algorithms to predict sleep quality based on lifestyle factors. Achieved 92% accuracy using Random Forest.",
-        techStack: ["Python", "Scikit-Learn", "Pandas", "Matplotlib"],
-        links: [
-          { name: "Notebook", url: "https://github.com/raghavendra1729-cell" }
+          { name: "GitHub", url: "https://github.com/raghavendra1729-cell" },
         ],
         featured: false,
-        startDate: "Oct 2024",
-        endDate: "Nov 2024"
-      }
+        startDate: "2024",
+        endDate: "2024",
+      },
     ];
 
-    // --- CP PROFILES ---
     const cpProfiles = [
       {
         platform: "LeetCode",
-        username: "raghavendra1729",
+        username: process.env.LEETCODE_USERNAME || "raghavendra1729",
         rating: 1750,
         maxRating: 1750,
-        rank: "Knight",
+        rank: "365-day streak",
         solvedCount: 700,
-        profileUrl: "https://leetcode.com/u/raghavendra1729"
-      },
-      {
-        platform: "CodeChef",
-        username: "raghavendra_cc",
-        rating: 1680,
-        maxRating: 1680,
-        rank: "3-Star",
-        solvedCount: 200,
-        profileUrl: "https://codechef.com"
+        profileUrl: `https://leetcode.com/u/${process.env.LEETCODE_USERNAME || "raghavendra1729"}`,
+        dataSource: "seed",
+        lastSyncedAt: new Date(),
+        fallbackEnabled: true,
       },
       {
         platform: "Codeforces",
-        username: "raghavendra_cf",
+        username: process.env.CODEFORCES_USERNAME || "raghavendra_cf",
         rating: 1210,
         maxRating: 1210,
         rank: "Pupil",
         solvedCount: 150,
-        profileUrl: "https://codeforces.com"
-      }
+        profileUrl: `https://codeforces.com/profile/${process.env.CODEFORCES_USERNAME || "raghavendra_cf"}`,
+        dataSource: "seed",
+        lastSyncedAt: new Date(),
+        fallbackEnabled: true,
+      },
+      {
+        platform: "CodeChef",
+        username: process.env.CODECHEF_USERNAME || "raghavendra_cc",
+        rating: 1680,
+        maxRating: 1680,
+        rank: "3-Star",
+        solvedCount: 200,
+        profileUrl: `https://www.codechef.com/users/${process.env.CODECHEF_USERNAME || "raghavendra_cc"}`,
+        dataSource: "seed",
+        lastSyncedAt: new Date(),
+        fallbackEnabled: true,
+      },
     ];
 
-    // --- ACHIEVEMENTS ---
     const achievements = [
       {
-        title: "Hackathon Winner - Hostel Hub",
-        organization: "TechWeek 2025",
-        date: "Jan 2026",
-        description: "Ranked 7th out of 150+ teams. Built an inventory management app for hostels.",
-        links: [{ name: "Certificate", url: "#" }]
-      }
+        title: "Hostel Hub Hackathon Finalist",
+        organization: "Campus Hackathon",
+        date: "2025",
+        description: "Built Hostel Hub and finished 7th out of 150+ participating teams.",
+      },
     ];
 
-    // 3. INSERT DATA
     await Skill.insertMany(skills);
     await Education.insertMany(education);
     await Experience.insertMany(experience);
@@ -176,20 +189,20 @@ export async function GET(req: NextRequest) {
     await CPProfile.insertMany(cpProfiles);
     await Achievement.insertMany(achievements);
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Database seeded successfully!",
+    return NextResponse.json({
+      success: true,
+      message: "Database seeded successfully.",
       stats: {
         skills: skills.length,
         education: education.length,
         experience: experience.length,
         projects: projects.length,
         cpProfiles: cpProfiles.length,
-        achievements: achievements.length
-      }
+        achievements: achievements.length,
+      },
     });
-
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
