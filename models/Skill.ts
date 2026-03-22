@@ -1,5 +1,17 @@
 import { Schema, model, models } from "mongoose";
 
+function getMapEntries<T>(value: Map<string, T> | Record<string, T> | undefined) {
+  if (!value) {
+    return [] as Array<[string, T]>;
+  }
+
+  return value instanceof Map ? Array.from(value.entries()) : Object.entries(value);
+}
+
+function normalizeKey(value: string) {
+  return value.trim().toLowerCase();
+}
+
 const SkillSchema = new Schema(
   {
     category: {
@@ -28,6 +40,58 @@ const SkillSchema = new Schema(
           message: "Duplicate skill items are not allowed.",
         },
       ],
+    },
+    proficiency: {
+      type: Map,
+      of: Number,
+      default: {},
+      validate: [
+        {
+          validator: (value: Map<string, number> | Record<string, number>) => {
+            const entries = value instanceof Map ? Array.from(value.values()) : Object.values(value || {});
+            return entries.every((item) => Number.isFinite(item) && item >= 0 && item <= 100);
+          },
+          message: "Skill proficiency values must be between 0 and 100.",
+        },
+        {
+          validator: function (
+            this: { items?: string[] },
+            value: Map<string, number> | Record<string, number>
+          ) {
+            const itemKeys = new Set((this.items || []).map(normalizeKey));
+            return getMapEntries(value).every(([key]) => itemKeys.has(normalizeKey(key)));
+          },
+          message: "Proficiency values must map to existing skill items.",
+        },
+      ],
+    },
+    focusSignals: {
+      type: Map,
+      of: String,
+      default: {},
+      validate: [
+        {
+          validator: (value: Map<string, string> | Record<string, string>) => {
+            const entries = value instanceof Map ? Array.from(value.values()) : Object.values(value || {});
+            return entries.every((item) => item.trim().length <= 40);
+          },
+          message: "Focus signals must be 40 characters or fewer.",
+        },
+        {
+          validator: function (
+            this: { items?: string[] },
+            value: Map<string, string> | Record<string, string>
+          ) {
+            const itemKeys = new Set((this.items || []).map(normalizeKey));
+            return getMapEntries(value).every(([key]) => itemKeys.has(normalizeKey(key)));
+          },
+          message: "Focus signals must map to existing skill items.",
+        },
+      ],
+    },
+    order: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true }

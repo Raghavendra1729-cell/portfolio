@@ -2,68 +2,75 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Github, Linkedin, Mail } from "lucide-react";
-import { publicNavItems, siteConfig } from "@/lib/site-config";
+import { publicNavItems, siteConfig, socialLinks } from "@/lib/site-config";
 
 export default function Footer() {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
-
-  const socials = [
-    { href: siteConfig.githubHref, icon: Github, label: "GitHub" },
-    { href: siteConfig.linkedinHref, icon: Linkedin, label: "LinkedIn" },
-    { href: siteConfig.emailHref, icon: Mail, label: "Email" },
-  ];
 
   if (pathname.startsWith("/admin")) {
     return null;
   }
 
   return (
-    <footer className="relative border-t border-white/5 mt-auto">
-      {/* Gradient line */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+    <footer className="mt-20">
+      <div className="mx-auto max-w-7xl px-4 pb-8 sm:px-6 lg:px-10">
+        <div className="command-surface command-outline rounded-[2rem] px-6 py-8 sm:px-8">
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
+            <div className="max-w-md">
+              <p className="font-mono text-[0.68rem] uppercase tracking-[0.3em] text-cyan-200/80">
+                {siteConfig.name}
+              </p>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">
+                {siteConfig.role}
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                Software engineer and student focused on adaptable problem solving, fast learning,
+                and clear execution.
+              </p>
+              <p className="mt-3 text-sm text-slate-400">{siteConfig.location}</p>
+            </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="text-center md:text-left">
-            <p className="font-bold text-xl text-white">
-              {siteConfig.name}<span className="gradient-text">.</span>
-            </p>
-            <p className="text-sm text-slate-500 mt-1">
-              {siteConfig.role}
-            </p>
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Explore
+              </h3>
+              <div className="mt-4 grid gap-3 text-sm text-slate-300">
+                {publicNavItems
+                  .filter((item) => item.href !== "/")
+                  .map((item) => (
+                    <Link key={item.href} href={item.href} className="transition hover:text-white">
+                      {item.label}
+                    </Link>
+                  ))}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-400">
+                Connect
+              </h3>
+              <div className="mt-4 grid gap-3 text-sm text-slate-300">
+                {socialLinks.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    target={link.href.startsWith("http") ? "_blank" : undefined}
+                    rel={link.href.startsWith("http") ? "noreferrer" : undefined}
+                    className="transition hover:text-white"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-4 text-sm text-slate-400">
-            {publicNavItems.filter((item) => item.href !== "/").map((item) => (
-              <Link key={item.href} href={item.href} className="transition hover:text-white">
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex gap-3">
-            {socials.map(({ href, icon: Icon, label }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-3 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 hover:border-indigo-500/30 transition-all"
-              >
-                <Icon className="w-4 h-4" />
-              </a>
-            ))}
+          <div className="mt-8 flex flex-col gap-3 border-t border-white/8 pt-6 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <p>© {currentYear} {siteConfig.name}.</p>
+            <p>{siteConfig.availability}</p>
           </div>
         </div>
-      </div>
-
-      <div className="border-t border-white/5 py-6 text-center text-xs text-slate-600 flex justify-center gap-4">
-        <span>© {currentYear} All rights reserved.</span>
-        <Link href="/contact" className="hover:text-slate-400 transition">
-          Contact
-        </Link>
       </div>
     </footer>
   );

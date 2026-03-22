@@ -8,10 +8,19 @@ import {
   isAuthenticated,
   setAdminSessionCookie,
 } from "@/lib/auth";
-import { isSupportedAdminCollection, validateContentData, type AdminCollectionId } from "@/lib/content-schema";
+import {
+  isSupportedContentCollection,
+  validateContentData,
+  type ContentCollectionId,
+} from "@/lib/content-schema";
 
+import Project from "@/models/Project";
+import Experience from "@/models/Experience";
+import Education from "@/models/Education";
 import Skill from "@/models/Skill";
 import Achievement from "@/models/Achievement";
+import CPProfile from "@/models/CPProfile";
+import Hackathon from "@/models/Hackathon";
 
 type AdminModel = {
   create: (data: Record<string, unknown>) => Promise<unknown>;
@@ -19,15 +28,20 @@ type AdminModel = {
   findByIdAndDelete: (id: string) => Promise<unknown>;
 };
 
-const MODELS: Record<AdminCollectionId, AdminModel> = {
+const MODELS: Record<ContentCollectionId, AdminModel> = {
+  project: Project,
+  experience: Experience,
+  education: Education,
   skill: Skill,
   achievement: Achievement,
+  cpProfile: CPProfile,
+  hackathon: Hackathon,
 };
 
 type AdminErrorType = "auth" | "validation" | "server";
 
 function getModel(collection: string | null) {
-  if (!isSupportedAdminCollection(collection)) {
+  if (!isSupportedContentCollection(collection)) {
     return null;
   }
 
@@ -150,7 +164,7 @@ export async function POST(req: NextRequest) {
     return errorResponse(400, "validation", "A valid content payload is required.");
   }
 
-  if (!isSupportedAdminCollection(collection)) {
+  if (!isSupportedContentCollection(collection)) {
     return errorResponse(400, "validation", "The requested collection is invalid.");
   }
 
@@ -203,7 +217,7 @@ export async function PUT(req: NextRequest) {
     return errorResponse(400, "validation", "A valid content payload is required.");
   }
 
-  if (!isSupportedAdminCollection(collection)) {
+  if (!isSupportedContentCollection(collection)) {
     return errorResponse(400, "validation", "The requested collection is invalid.");
   }
 

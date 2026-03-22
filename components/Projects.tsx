@@ -2,127 +2,131 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ExternalLink } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowUpRight, Workflow } from "lucide-react";
+import { type ProjectRecord } from "@/lib/data";
 
-interface ProjectItem {
-  _id: string;
-  title: string;
-  description: string;
-  techStack?: string[];
-  link?: string;
-  images?: string[];
-  featured?: boolean;
+function getProjectWindow(project: ProjectRecord) {
+  const dates = [project.startDate, project.endDate].filter(Boolean);
+
+  if (dates.length > 0) {
+    return dates.join(" - ");
+  }
+
+  return project.featured ? "Featured" : "";
 }
 
-const container = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.08 },
-  },
-};
+function getPrimaryLink(project: ProjectRecord) {
+  const directLinks = [
+    project.link ? { name: "Live Demo", url: project.link } : null,
+    project.repo ? { name: "Repository", url: project.repo } : null,
+    ...project.links,
+  ].filter((link): link is { name: string; url: string } => Boolean(link?.url));
 
-const card = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.6, ease: "easeOut" as const },
-  },
-};
+  return directLinks[0] || null;
+}
 
-export default function Projects({
-  data,
-  showLink = false,
-}: {
-  data: ProjectItem[];
-  showLink?: boolean;
-}) {
-  if (!data || data.length === 0) return null;
+export default function Projects({ data }: { data: ProjectRecord[] }) {
+  const reducedMotion = useReducedMotion();
+
+  if (!data.length) {
+    return (
+      <div className="command-surface command-outline rounded-[2rem] p-6 text-center sm:p-8">
+        <p className="font-mono text-[0.68rem] uppercase tracking-[0.32em] text-slate-500">
+          Projects
+        </p>
+        <p className="mt-4 text-lg text-slate-300">No projects are available yet.</p>
+      </div>
+    );
+  }
 
   return (
-    <section className="w-full">
-      {showLink && (
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <p className="text-xs font-semibold tracking-widest text-indigo-400 uppercase mb-1">
-              Selected Work
-            </p>
-            <h2 className="text-2xl font-bold text-white">Recent Projects</h2>
-          </div>
-          <Link
-            href="/projects"
-            className="text-sm font-medium text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition"
+    <div className="grid gap-6 xl:grid-cols-2">
+      {data.map((project, index) => {
+        const primaryLink = getPrimaryLink(project);
+        const projectWindow = getProjectWindow(project);
+
+        return (
+          <motion.article
+            key={project._id}
+            initial={reducedMotion ? undefined : { opacity: 0, y: 24 }}
+            whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.42, delay: index * 0.05 }}
+            className="command-surface command-outline overflow-hidden rounded-[2rem]"
           >
-            View All <ExternalLink className="w-3 h-3" />
-          </Link>
-        </div>
-      )}
-
-      <motion.div
-        className="grid grid-cols-1 md:grid-cols-2 gap-6"
-        variants={container}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-50px" }}
-      >
-        {data.map((project) => (
-          <motion.div key={project._id} variants={card}>
-            <Link
-              href={`/projects/${project._id}`}
-              className="group block h-full"
-            >
-              <article className="relative h-full overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/30 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/10 flex flex-col">
-                {/* Hover glow */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.06),transparent_70%)]" />
-
-                {/* Image */}
-                <div className="relative h-44 w-full bg-gradient-to-br from-slate-800 to-slate-900 overflow-hidden">
-                  {project.images?.[0] ? (
-                    <Image
-                      src={project.images[0]}
-                      alt={project.title}
-                      fill
-                      unoptimized
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center">
-                      <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                        <span className="text-2xl font-bold gradient-text">
-                          {project.title[0]}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                </div>
-
-                <div className="flex-1 p-5 flex flex-col relative">
-                  <h3 className="text-lg font-semibold text-white group-hover:text-indigo-300 transition-colors mb-2">
-                    {project.title}
-                  </h3>
-                  <p className="text-sm text-slate-400 mb-4 line-clamp-2">
-                    {project.description}
-                  </p>
-
-                  <div className="mt-auto flex flex-wrap gap-2">
-                    {project.techStack?.slice(0, 4).map((tech) => (
-                      <span
-                        key={tech}
-                        className="text-xs px-2.5 py-1 rounded-md bg-white/5 text-slate-300 border border-white/5"
-                      >
-                        {tech}
-                      </span>
-                    ))}
+            <div className="relative aspect-[16/9] border-b border-white/8 bg-slate-950/55">
+              {project.images[0] ? (
+                <Image
+                  src={project.images[0]}
+                  alt={project.title}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.16),transparent_42%),linear-gradient(180deg,rgba(15,23,42,0.72),rgba(2,6,23,0.96))]">
+                  <div className="rounded-[1.4rem] border border-cyan-300/18 bg-cyan-300/10 p-5 text-cyan-100">
+                    <Workflow className="h-8 w-8" />
                   </div>
                 </div>
-              </article>
-            </Link>
-          </motion.div>
-        ))}
-      </motion.div>
-    </section>
+              )}
+            </div>
+
+            <div className="p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-2xl font-semibold tracking-[-0.04em] text-white">
+                    {project.title}
+                  </h3>
+                  {projectWindow ? (
+                    <p className="mt-2 text-sm text-slate-400">{projectWindow}</p>
+                  ) : null}
+                </div>
+              </div>
+
+              <p className="mt-4 text-sm leading-7 text-slate-300">
+                {project.description || "A project summary will be added here."}
+              </p>
+
+              {project.techStack.length > 0 ? (
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {project.techStack.slice(0, 6).map((tech) => (
+                    <span
+                      key={tech}
+                      className="rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-xs text-slate-200/85"
+                    >
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link
+                  href={`/projects/${project._id}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-cyan-300/16 bg-cyan-300/10 px-4 py-2.5 text-sm font-medium text-cyan-50"
+                >
+                  View project
+                  <ArrowUpRight className="h-4 w-4" />
+                </Link>
+
+                {primaryLink ? (
+                  <a
+                    href={primaryLink.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white"
+                  >
+                    {primaryLink.name}
+                    <ArrowUpRight className="h-4 w-4" />
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </motion.article>
+        );
+      })}
+    </div>
   );
 }

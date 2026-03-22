@@ -1,213 +1,132 @@
-import { unstable_cache } from "next/cache";
 import { NextResponse } from "next/server";
+import { listContentDocuments } from "@/lib/content-service";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
-type PlatformSnapshot = {
-  platform: "LeetCode" | "Codeforces" | "CodeChef";
+type CPPlatformPayload = {
+  platform: string;
   headline: string;
   subheadline: string;
   value: string;
   accent: string;
-  source: "live" | "fallback";
+  source: "tracked";
   profileUrl: string;
-};
-
-type PlatformResult = PlatformSnapshot & {
   solvedCount: number;
 };
 
-const usernames = {
-  leetcode: process.env.LEETCODE_USERNAME || "raghavendra1729",
-  codeforces: process.env.CODEFORCES_USERNAME || "raghavendra_cf",
-  codechef: process.env.CODECHEF_USERNAME || "raghavendra_cc",
-};
+function getHeadline(record: Record<string, unknown>) {
+  const headline = typeof record.headline === "string" ? record.headline.trim() : "";
+  const rank = typeof record.rank === "string" ? record.rank.trim() : "";
+  const streak = typeof record.streak === "number" ? record.streak : 0;
+  const solvedCount = typeof record.solvedCount === "number" ? record.solvedCount : 0;
 
-const fallbackPlatforms: PlatformResult[] = [
-  {
-    platform: "LeetCode",
-    headline: "365-day streak",
-    subheadline: "700+ solved problems",
-    value: "700+",
-    accent: "from-amber-300/35 to-yellow-500/10",
-    source: "fallback",
-    profileUrl: `https://leetcode.com/u/${usernames.leetcode}`,
-    solvedCount: 700,
-  },
-  {
-    platform: "Codeforces",
-    headline: "Pupil",
-    subheadline: "Max rating 1210",
-    value: "1210",
-    accent: "from-cyan-300/35 to-sky-500/10",
-    source: "fallback",
-    profileUrl: `https://codeforces.com/profile/${usernames.codeforces}`,
-    solvedCount: 150,
-  },
-  {
-    platform: "CodeChef",
-    headline: "3-star profile",
-    subheadline: "Max rating 1680",
-    value: "1680",
-    accent: "from-violet-300/35 to-fuchsia-500/10",
-    source: "fallback",
-    profileUrl: `https://www.codechef.com/users/${usernames.codechef}`,
-    solvedCount: 200,
-  },
-];
+  if (headline) {
+    return headline;
+  }
 
-async function fetchLeetCode(): Promise<PlatformResult> {
-  const fallback = fallbackPlatforms[0];
-  const response = await fetch("https://leetcode.com/graphql", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      referer: `https://leetcode.com/u/${usernames.leetcode}/`,
-    },
-    body: JSON.stringify({
-      query: `
-        query userPublicProfile($username: String!) {
-          matchedUser(username: $username) {
-            submitStats {
-              acSubmissionNum {
-                difficulty
-                count
-              }
-            }
-            userCalendar {
-              streak
-            }
+  if (rank) {
+    return rank;
+  }
+
+  if (streak > 0) {
+    return `${streak}-day streak`;
+  }
+
+  if (solvedCount > 0) {
+    return `${solvedCount} solved`;
+  }
+
+  return "Profile active";
+}
+
+function getSubheadline(record: Record<string, unknown>) {
+  const summary = typeof record.summary === "string" ? record.summary.trim() : "";
+  const maxRating = typeof record.maxRating === "number" ? record.maxRating : 0;
+  const username = typeof record.username === "string" ? record.username.trim() : "";
+
+  if (summary) {
+    return summary;
+  }
+
+  if (maxRating > 0) {
+    return `Max rating ${maxRating}`;
+  }
+
+  if (username) {
+    return `Handle: ${username}`;
+  }
+
+  return "Profile summary pending.";
+}
+
+function getValue(record: Record<string, unknown>) {
+  const rating = typeof record.rating === "number" ? record.rating : 0;
+  const maxRating = typeof record.maxRating === "number" ? record.maxRating : 0;
+  const solvedCount = typeof record.solvedCount === "number" ? record.solvedCount : 0;
+
+  if (rating > 0) {
+    return String(rating);
+  }
+
+  if (maxRating > 0) {
+    return String(maxRating);
+  }
+
+  return String(solvedCount);
+}
+
+export async function GET() {
+  try {
+    const records = (await listContentDocuments("cpProfile")) as Array<Record<string, unknown>>;
+
+    const platforms: CPPlatformPayload[] = records.map((record) => ({
+      platform: typeof record.platform === "string" ? record.platform : "Platform",
+      headline: getHeadline(record),
+      subheadline: getSubheadline(record),
+      value: getValue(record),
+      accent:
+        typeof record.accent === "string" && record.accent.trim()
+          ? record.accent
+          : "from-cyan-300/35 to-sky-500/10",
+      source: "tracked",
+      profileUrl: typeof record.profileUrl === "string" ? record.profileUrl : "",
+      solvedCount: typeof record.solvedCount === "number" ? record.solvedCount : 0,
+    }));
+
+    const latestSync = records.reduce<string | null>((currentLatest, record) => {
+      const candidates = [record.lastSyncedAt, record.updatedAt]
+        .map((value) => {
+          if (value instanceof Date) {
+            return value.toISOString();
           }
-        }
-      `,
-      variables: { username: usernames.leetcode },
-    }),
-    next: { revalidate },
-  });
 
-  if (!response.ok) {
-    return fallback;
-  }
+          return typeof value === "string" ? value : null;
+        })
+        .filter((value): value is string => Boolean(value));
 
-  const payload = (await response.json()) as {
-    data?: {
-      matchedUser?: {
-        submitStats?: { acSubmissionNum?: Array<{ difficulty?: string; count?: number }> };
-        userCalendar?: { streak?: number };
-      };
-    };
-  };
+      if (candidates.length === 0) {
+        return currentLatest;
+      }
 
-  const stats = payload.data?.matchedUser?.submitStats?.acSubmissionNum || [];
-  const totalSolved = stats.find((item) => item.difficulty === "All")?.count || fallback.solvedCount;
-  const streak = payload.data?.matchedUser?.userCalendar?.streak || 365;
+      const nextLatest = candidates.sort().at(-1) || null;
 
-  return {
-    ...fallback,
-    headline: `${streak}-day streak`,
-    subheadline: `${totalSolved}+ solved problems`,
-    value: `${totalSolved}+`,
-    source: "live",
-    solvedCount: totalSolved,
-  };
-}
+      if (!currentLatest) {
+        return nextLatest;
+      }
 
-async function fetchCodeforces(): Promise<PlatformResult> {
-  const fallback = fallbackPlatforms[1];
-  const [infoResponse, statusResponse] = await Promise.all([
-    fetch(`https://codeforces.com/api/user.info?handles=${usernames.codeforces}`, {
-      next: { revalidate },
-    }),
-    fetch(`https://codeforces.com/api/user.status?handle=${usernames.codeforces}&from=1&count=200`, {
-      next: { revalidate },
-    }),
-  ]);
+      return nextLatest && nextLatest > currentLatest ? nextLatest : currentLatest;
+    }, null);
 
-  if (!infoResponse.ok || !statusResponse.ok) {
-    return fallback;
-  }
-
-  const infoPayload = (await infoResponse.json()) as {
-    status?: string;
-    result?: Array<{ rank?: string; maxRating?: number }>;
-  };
-  const statusPayload = (await statusResponse.json()) as {
-    status?: string;
-    result?: Array<{ verdict?: string; problem?: { contestId?: number; index?: string } }>;
-  };
-
-  const user = infoPayload.result?.[0];
-  const solvedCount = new Set(
-    (statusPayload.result || [])
-      .filter((submission) => submission.verdict === "OK")
-      .map((submission) => `${submission.problem?.contestId || 0}-${submission.problem?.index || ""}`)
-  ).size;
-
-  return {
-    ...fallback,
-    headline: user?.rank ? capitalize(user.rank) : fallback.headline,
-    subheadline: `Max rating ${user?.maxRating || 1210}`,
-    value: String(user?.maxRating || 1210),
-    source: "live",
-    solvedCount: solvedCount || fallback.solvedCount,
-  };
-}
-
-async function fetchCodeChef(): Promise<PlatformResult> {
-  const fallback = fallbackPlatforms[2];
-  const response = await fetch(`https://www.codechef.com/users/${usernames.codechef}`, {
-    headers: {
-      "user-agent": "Mozilla/5.0",
-    },
-    next: { revalidate },
-  });
-
-  if (!response.ok) {
-    return fallback;
-  }
-
-  const html = await response.text();
-  const ratingMatch = html.match(/"rating"\s*:\s*"?(\d{3,5})"?/i) || html.match(/<div class="rating-number">\s*(\d{3,5})\s*<\/div>/i);
-  const starsMatch = html.match(/"stars"\s*:\s*"([^"]+)"/i) || html.match(/<span[^>]*class="rating"[^>]*>([^<]+)<\/span>/i);
-  const maxRatingMatch = html.match(/"highest_rating"\s*:\s*"?(\d{3,5})"?/i);
-
-  const currentRating = Number(ratingMatch?.[1] || 1680);
-  const maxRating = Number(maxRatingMatch?.[1] || currentRating || 1680);
-  const stars = starsMatch?.[1]?.trim() || "3-star profile";
-
-  return {
-    ...fallback,
-    headline: stars,
-    subheadline: `Max rating ${maxRating}`,
-    value: String(currentRating),
-    source: "live",
-    solvedCount: fallback.solvedCount,
-  };
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-const getCachedStats = unstable_cache(
-  async () => {
-    const settled = await Promise.allSettled([fetchLeetCode(), fetchCodeforces(), fetchCodeChef()]);
-    const platforms = settled.map((result, index) => (result.status === "fulfilled" ? result.value : fallbackPlatforms[index]));
-
-    return {
-      syncedAt: new Date().toISOString(),
+    return NextResponse.json({
+      syncedAt: latestSync,
       summary: {
         totalSolved: platforms.reduce((sum, platform) => sum + platform.solvedCount, 0),
         activePlatforms: platforms.length,
       },
       platforms,
-    };
-  },
-  ["cp-stats-route-cache"],
-  { revalidate }
-);
-
-export async function GET() {
-  const payload = await getCachedStats();
-  return NextResponse.json(payload);
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to load competitive profiles.";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  }
 }

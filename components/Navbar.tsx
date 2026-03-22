@@ -2,16 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Command, Menu, X } from "lucide-react";
 import { publicNavItems, siteConfig } from "@/lib/site-config";
 import { cn } from "@/lib/utils";
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") {
+    return pathname === "/";
+  }
+
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export default function Navbar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const reducedMotion = useReducedMotion();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
@@ -19,104 +28,137 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
 
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   if (pathname.startsWith("/admin")) {
     return null;
   }
 
   return (
     <motion.header
-      initial={{ y: -80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" as const }}
-      className={cn(
-        "fixed top-0 w-full z-50 transition-all duration-300 h-16",
-        scrolled
-          ? "bg-slate-950/80 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-indigo-500/5"
-          : "bg-transparent"
-      )}
+      initial={reducedMotion ? undefined : { y: -40, opacity: 0 }}
+      animate={reducedMotion ? undefined : { y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className="fixed inset-x-0 top-0 z-50"
     >
-      <div className="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="relative group">
-          <span className="font-bold text-2xl tracking-tight text-white">
-            {siteConfig.name}
-            <span className="gradient-text">.</span>
-          </span>
-          <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-gradient-to-r from-indigo-500 to-cyan-400 group-hover:w-full transition-all duration-300" />
-        </Link>
-
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex gap-1">
-          {publicNavItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200",
-                  isActive
-                    ? "text-white"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                )}
-              >
-                {isActive && (
-                  <motion.span
-                    layoutId="navbar-active"
-                    className="absolute inset-0 rounded-lg bg-white/10 border border-white/10"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className="relative z-10">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Mobile Toggle */}
-        <button
-          className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition"
-          onClick={() => setIsOpen(!isOpen)}
+      <div className="mx-auto max-w-7xl px-4 pt-3 sm:px-6 lg:px-10">
+        <div
+          className={cn(
+            "command-surface command-outline flex items-center justify-between rounded-[1.7rem] px-4 py-3 transition-all duration-300 sm:px-5",
+            scrolled
+              ? "border-white/16 bg-slate-950/82 shadow-[0_24px_70px_rgba(2,6,23,0.5)]"
+              : "border-white/10 bg-slate-950/60"
+          )}
         >
-          {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+          <Link
+            href="/"
+            onClick={() => setIsOpen(false)}
+            className="group flex min-w-0 items-center gap-3 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/60"
+          >
+            <span className="relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+              <Command className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold uppercase tracking-[0.24em] text-slate-300">
+                {siteConfig.name}
+              </p>
+              <p className="truncate text-xs text-slate-500">{siteConfig.role}</p>
+            </div>
+          </Link>
+
+          <nav className="hidden items-center gap-1 lg:flex">
+            {publicNavItems.map((item) => {
+              const isActive = isActivePath(pathname, item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    "relative rounded-full px-4 py-2.5 text-sm font-medium text-slate-300 transition-all duration-200",
+                    isActive ? "text-white" : "hover:text-white"
+                  )}
+                >
+                  {isActive ? (
+                    <span className="absolute inset-0 rounded-full border border-cyan-300/16 bg-cyan-300/10" />
+                  ) : null}
+                  <span className="relative z-10">{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          <button
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-slate-300 hover:border-cyan-300/20 hover:text-white lg:hidden"
+            onClick={() => setIsOpen((value) => !value)}
+            aria-label={isOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={isOpen}
+          >
+            {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile Menu */}
       <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25, ease: "easeOut" as const }}
-            className="md:hidden overflow-hidden bg-slate-950/95 backdrop-blur-xl border-b border-white/5"
-          >
-            <div className="p-4 flex flex-col gap-1">
-              {publicNavItems.map((item, i) => (
-                <motion.div
-                  key={item.href}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.05 }}
-                >
-                  <Link
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "block px-4 py-3 rounded-lg text-sm font-medium transition",
-                      pathname === item.href
-                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                        : "text-slate-300 hover:bg-white/5 hover:text-white"
-                    )}
-                  >
-                    {item.label}
-                  </Link>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
+        {isOpen ? (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[-1] bg-slate-950/72 backdrop-blur-sm lg:hidden"
+            />
+            <motion.div
+              initial={reducedMotion ? undefined : { opacity: 0, y: -18 }}
+              animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+              exit={reducedMotion ? undefined : { opacity: 0, y: -18 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="mx-auto mt-3 max-w-7xl px-4 sm:px-6 lg:hidden"
+            >
+              <div className="command-surface command-outline overflow-hidden rounded-[1.8rem] border border-white/12 px-4 py-4">
+                <div className="grid gap-2">
+                  {publicNavItems.map((item, index) => {
+                    const isActive = isActivePath(pathname, item.href);
+
+                    return (
+                      <motion.div
+                        key={item.href}
+                        initial={reducedMotion ? undefined : { opacity: 0, x: -10 }}
+                        animate={reducedMotion ? undefined : { opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.04 }}
+                      >
+                        <Link
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={cn(
+                            "flex items-center justify-between rounded-[1.15rem] border px-4 py-3.5 text-sm transition-all",
+                            isActive
+                              ? "border-cyan-300/18 bg-cyan-300/10 text-white"
+                              : "border-white/8 bg-slate-950/35 text-slate-300"
+                          )}
+                        >
+                          <span>{item.label}</span>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        ) : null}
       </AnimatePresence>
     </motion.header>
   );

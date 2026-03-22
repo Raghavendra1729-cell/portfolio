@@ -1,16 +1,21 @@
 export const siteConfig = {
   name: "Raghavendra",
   role: "Software Engineer",
-  headline: "Backend-focused engineer building reliable systems and polished product experiences.",
-  emailHref: "mailto:your.email@example.com",
-  emailLabel: "your.email@example.com",
+  headline:
+    "Software engineer and student who adapts quickly, learns unfamiliar stacks fast, and works independently to turn ambiguous problems into shipped solutions.",
+  emailHref: "mailto:lingaraghawendra@gmail.com",
+  emailLabel: "lingaraghawendra@gmail.com",
   githubHref: "https://github.com/raghavendra1729-cell",
-  linkedinHref: "https://www.linkedin.com",
+  linkedinHref: "https://www.linkedin.com/in/raghavendra-linga/",
+  availability: "Open to software engineering internships, collaborations, and full-time roles.",
+  location: "India",
 };
 
 export const publicNavItems = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
+  { label: "Projects", href: "/projects" },
+  { label: "Experience", href: "/experience" },
   { label: "Skills", href: "/skills" },
   { label: "Achievements", href: "/achievements" },
   { label: "Contact", href: "/contact" },

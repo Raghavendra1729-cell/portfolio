@@ -1,66 +1,68 @@
-import { getData } from "@/lib/data";
-import { Code2, Layers } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
-
-type SkillRecord = {
-  _id: string;
-  category: string;
-  items: string[];
-};
-
-export const revalidate = 3600;
+import PageHeader from "@/components/layout/PageHeader";
+import PageShell from "@/components/layout/PageShell";
+import { getData, type SkillRecord } from "@/lib/data";
+import { getItemProficiency } from "@/lib/skill-utils";
 
 export default async function SkillsPage() {
   const skills = (await getData("skill")) as SkillRecord[];
 
   return (
-    <main className="relative pt-32 pb-24 px-6">
-      <div className="max-w-6xl mx-auto">
-        <RevealSection className="text-center mb-16">
-          <span className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-300 border border-indigo-500/20">
-            <Layers className="w-3 h-3" /> Tech Stack
-          </span>
-          <h1 className="mt-5 text-4xl md:text-5xl font-bold text-white">
-            Technical Skills
-          </h1>
-          <p className="mt-4 text-slate-400 max-w-2xl mx-auto">
-            Languages, frameworks, and tools I use to build scalable software.
-          </p>
-        </RevealSection>
+    <PageShell>
+      <PageHeader
+        eyebrow="Skills"
+        title="Skills."
+        description="Skills and current levels."
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {skills.map((skill, idx) => (
-            <RevealSection key={skill._id} delay={idx * 0.05}>
-              <div className="group relative h-full overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/20 p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-indigo-500/5">
-                {/* Hover glow */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.06),transparent_70%)]" />
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        {skills.length > 0 ? (
+          skills.map((category, index) => (
+            <RevealSection key={category._id} delay={index * 0.04}>
+              <article className="command-surface command-outline rounded-[1.8rem] p-6">
+                <h2 className="text-xl font-semibold text-white">{category.category}</h2>
 
-                <div className="relative">
-                  <div className="flex items-center gap-3 mb-5">
-                    <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-                      <Code2 className="w-5 h-5" />
-                    </div>
-                    <h3 className="font-bold text-lg text-white">
-                      {skill.category}
-                    </h3>
-                  </div>
+                <div className="mt-5 space-y-4">
+                  {category.items.map((item) => {
+                    const proficiency = getItemProficiency(category, item);
+                    const focusSignal = category.focusSignals?.[item];
 
-                  <div className="flex flex-wrap gap-2">
-                    {skill.items.map((item: string) => (
-                      <span
-                        key={item}
-                        className="px-3 py-1.5 bg-white/5 text-slate-300 rounded-lg font-medium text-sm border border-white/5 hover:border-indigo-500/30 hover:text-indigo-300 transition-all cursor-default"
-                      >
-                        {item}
-                      </span>
-                    ))}
-                  </div>
+                    return (
+                      <div key={item} className="rounded-[1.2rem] border border-white/8 bg-slate-950/45 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-sm font-medium text-white">{item}</p>
+                          <span className="text-sm text-cyan-200">{proficiency}%</span>
+                        </div>
+
+                        {focusSignal ? (
+                          <p className="mt-2 text-sm leading-7 text-slate-300">{focusSignal}</p>
+                        ) : null}
+
+                        <div className="mt-3 grid grid-cols-10 gap-1.5">
+                          {Array.from({ length: 10 }).map((_, levelIndex) => (
+                            <span
+                              key={`${category._id}-${item}-${levelIndex}`}
+                              className={`h-2.5 rounded-full ${
+                                levelIndex < Math.round(proficiency / 10)
+                                  ? "data-beam"
+                                  : "bg-white/8"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              </article>
             </RevealSection>
-          ))}
-        </div>
+          ))
+        ) : (
+          <RevealSection className="command-surface command-outline rounded-[1.8rem] p-6 text-sm leading-7 text-slate-400 md:col-span-2 xl:col-span-3">
+            No skill categories are available yet.
+          </RevealSection>
+        )}
       </div>
-    </main>
+    </PageShell>
   );
 }

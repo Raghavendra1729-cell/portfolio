@@ -1,145 +1,69 @@
-import { getData } from "@/lib/data";
-import { GraduationCap, User } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
-
-type EducationRecord = {
-  _id: string;
-  institution: string;
-  degree: string;
-  startDate?: string;
-  endDate?: string;
-  grade?: string;
-};
-
-export const revalidate = 3600;
+import PageHeader from "@/components/layout/PageHeader";
+import PageShell from "@/components/layout/PageShell";
+import { getData, type EducationRecord } from "@/lib/data";
 
 export default async function AboutPage() {
   const education = (await getData("education")) as EducationRecord[];
 
   return (
-    <main className="relative pt-32 pb-24 px-6">
-      <div className="max-w-5xl mx-auto space-y-16">
-        {/* BIO HEADER */}
-        <RevealSection className="relative overflow-hidden rounded-3xl bg-white/[0.03] border border-white/[0.06] px-6 py-12 md:px-12">
-          {/* Background blobs */}
-          <div className="pointer-events-none absolute -right-24 -top-24 h-64 w-64 rounded-full bg-indigo-500/10 blur-[100px]" />
-          <div className="pointer-events-none absolute -left-24 -bottom-24 h-64 w-64 rounded-full bg-cyan-500/10 blur-[100px]" />
+    <PageShell>
+      <PageHeader
+        eyebrow="About"
+        title="About me."
+        description="A short introduction and education summary."
+      />
 
-          <div className="relative flex flex-col md:flex-row items-center md:items-start gap-12">
-            
-            {/* Text Content */}
-            <div className="flex-1">
-              <span className="inline-flex items-center gap-2 rounded-full bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-indigo-300 border border-indigo-500/20">
-                <User className="w-3 h-3" /> About
-              </span>
-              <h1 className="mt-6 text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
-                Raghavendra, the engineer behind the{" "}
-                <span className="gradient-text">systems</span>.
-              </h1>
-              <div className="mt-6 text-base md:text-lg text-slate-400 leading-relaxed space-y-4">
-                <p>
-                  I am a Computer Science student pursuing a dual-degree track at{" "}
-                  <strong className="text-white">BITS Pilani</strong> and{" "}
-                  <strong className="text-white">
-                    Scaler School of Technology
-                  </strong>
-                  .
-                </p>
-                <p>
-                  My focus is on{" "}
-                  <strong className="text-indigo-300">
-                    Distributed Systems
-                  </strong>
-                  ,{" "}
-                  <strong className="text-indigo-300">
-                    Backend Engineering
-                  </strong>
-                  , and{" "}
-                  <strong className="text-indigo-300">
-                    Product-oriented software development
-                  </strong>
-                  . I enjoy taking messy problems, structuring them clearly, and
-                  shipping systems that are stable, readable, and useful.
-                </p>
-              </div>
-            </div>
-
-            {/* Image Placeholder */}
-            <div className="w-full max-w-sm shrink-0">
-               <div className="relative aspect-square w-full overflow-hidden rounded-3xl border border-white/10 bg-slate-900/50 group">
-                  <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/20 to-indigo-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
-                  {/* Placeholder for User Image */}
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-500 gap-3">
-                     <User className="w-12 h-12 opacity-50" />
-                     <span className="text-sm font-medium uppercase tracking-widest">Profile Photo</span>
-                  </div>
-                  {/* <img src="/about-photo.jpg" alt="About Raghavendra" className="w-full h-full object-cover" /> */}
-               </div>
-               
-               {/* Optional Caption/Stats */}
-               <div className="flex justify-between items-center mt-4 px-2">
-                 <div className="text-center">
-                    <p className="text-2xl font-bold text-white">3+</p>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Years Coding</p>
-                 </div>
-                 <div className="h-8 w-px bg-white/10" />
-                 <div className="text-center">
-                    <p className="text-2xl font-bold text-white">4+</p>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Core domains</p>
-                 </div>
-                 <div className="h-8 w-px bg-white/10" />
-                 <div className="text-center">
-                    <p className="text-2xl font-bold text-white">1</p>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Clear goal</p>
-                 </div>
-               </div>
-            </div>
-
+      <section className="grid gap-6">
+        <RevealSection className="command-surface command-outline rounded-[2rem] p-6 sm:p-7">
+          <div className="space-y-4 text-base leading-8 text-slate-300">
+            <p>
+              I&apos;m a software engineer and student who adapts quickly, learns new tools fast,
+              and works independently to turn ideas into working software.
+            </p>
+            <p>
+              I care about clarity, good execution, and building things that are useful.
+            </p>
           </div>
         </RevealSection>
 
-        {/* EDUCATION */}
-        <RevealSection>
-          <div className="flex items-center gap-3 mb-8">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <GraduationCap className="w-5 h-5" />
-            </span>
-            <h2 className="text-2xl font-bold text-white">Education</h2>
-          </div>
-          <div className="grid grid-cols-1 gap-4">
-            {education.map((edu) => (
-              <article
-                key={edu._id}
-                className="group relative overflow-hidden rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-indigo-500/20 px-6 py-5 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-500/5"
-              >
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none bg-[radial-gradient(circle_at_top_left,rgba(99,102,241,0.05),transparent_60%)]" />
-                <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                  <div>
-                    <h3 className="font-semibold text-lg text-white">
-                      {edu.institution}
-                    </h3>
-                    <p className="text-slate-400">{edu.degree}</p>
-                  </div>
-                  <div className="text-left md:text-right">
-                    <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300 border border-indigo-500/20">
-                      {edu.startDate} – {edu.endDate}
-                    </span>
-                    {edu.grade && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        Grade:{" "}
-                        <span className="font-medium text-slate-300">
-                          {edu.grade}
-                        </span>
+        <RevealSection className="mb-2">
+          <h2 className="text-2xl font-semibold tracking-[-0.04em] text-white">Education</h2>
+        </RevealSection>
+
+        <div className="grid gap-4">
+          {education.length > 0 ? (
+            education.map((record) => (
+              <RevealSection key={record._id}>
+                <article className="command-surface command-outline rounded-[1.8rem] p-6">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">{record.institution}</h3>
+                      <p className="mt-2 text-sm text-cyan-200">
+                        {[record.degree, record.program].filter(Boolean).join(" • ")}
                       </p>
-                    )}
+                    </div>
+
+                    <div className="space-y-2 text-sm text-slate-400 lg:text-right">
+                      <p>{[record.startDate, record.endDate].filter(Boolean).join(" - ") || "Timeline pending"}</p>
+                      {record.status ? <p>{record.status}</p> : null}
+                      {record.grade ? (
+                        <p>
+                          {record.gradeLabel || "Grade"}: <span className="text-white">{record.grade}</span>
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </RevealSection>
-      </div>
-    </main>
+                </article>
+              </RevealSection>
+            ))
+          ) : (
+            <RevealSection className="command-surface command-outline rounded-[1.8rem] p-6 text-sm leading-7 text-slate-400">
+              Education updates will appear here once records are added.
+            </RevealSection>
+          )}
+        </div>
+      </section>
+    </PageShell>
   );
 }

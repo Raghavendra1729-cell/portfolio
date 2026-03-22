@@ -1,67 +1,96 @@
-import { Schema, model, models } from 'mongoose';
+import { Schema, model, models } from "mongoose";
 
-const RatingPointSchema = new Schema(
-  {
-    label: { type: String, trim: true },
-    date: Date,
-    rating: { type: Number, required: true, min: 0 },
-  },
-  { _id: false }
-);
+function isValidHttpUrl(value: string) {
+  return /^https?:\/\//.test(value);
+}
 
-const ProblemCountsSchema = new Schema(
+const CPBadgeSchema = new Schema(
   {
-    total: { type: Number, default: 0, min: 0 },
-    easy: { type: Number, default: 0, min: 0 },
-    medium: { type: Number, default: 0, min: 0 },
-    hard: { type: Number, default: 0, min: 0 },
-    contest: { type: Number, default: 0, min: 0 },
-  },
-  { _id: false }
-);
-
-const TopicBreakdownSchema = new Schema(
-  {
-    topic: { type: String, required: true, trim: true },
-    count: { type: Number, default: 0, min: 0 },
-    percentage: { type: Number, default: 0, min: 0, max: 100 },
-  },
-  { _id: false }
-);
-
-const LanguageStatSchema = new Schema(
-  {
-    language: { type: String, required: true, trim: true },
-    problemsSolved: { type: Number, default: 0, min: 0 },
-    percentage: { type: Number, default: 0, min: 0, max: 100 },
+    label: { type: String, required: true, trim: true, maxlength: 40 },
+    value: { type: String, trim: true, maxlength: 60, default: "" },
   },
   { _id: false }
 );
 
 const CPProfileSchema = new Schema(
   {
-    platform: { type: String, required: true, trim: true },
-    username: { type: String, trim: true },
+    platform: {
+      type: String,
+      required: [true, "Platform is required."],
+      trim: true,
+      minlength: [2, "Platform must be at least 2 characters."],
+      maxlength: [40, "Platform must be 40 characters or fewer."],
+    },
+    username: {
+      type: String,
+      trim: true,
+      maxlength: [60, "Username must be 60 characters or fewer."],
+      default: "",
+    },
+    headline: {
+      type: String,
+      trim: true,
+      maxlength: [80, "Headline must be 80 characters or fewer."],
+      default: "",
+    },
+    summary: {
+      type: String,
+      trim: true,
+      maxlength: [180, "Summary must be 180 characters or fewer."],
+      default: "",
+    },
     rating: { type: Number, default: 0, min: 0 },
     maxRating: { type: Number, default: 0, min: 0 },
-    rank: { type: String, trim: true },
+    rank: {
+      type: String,
+      trim: true,
+      maxlength: [80, "Rank must be 80 characters or fewer."],
+      default: "",
+    },
     solvedCount: { type: Number, default: 0, min: 0 },
-    profileUrl: { type: String, trim: true },
-    ratingHistory: { type: [RatingPointSchema], default: [] },
-    problemCounts: { type: ProblemCountsSchema, default: () => ({}) },
-    topicBreakdown: { type: [TopicBreakdownSchema], default: [] },
-    languageStats: { type: [LanguageStatSchema], default: [] },
+    streak: { type: Number, default: 0, min: 0 },
+    profileUrl: {
+      type: String,
+      trim: true,
+      default: "",
+      validate: {
+        validator: (value: string) => !value || isValidHttpUrl(value),
+        message: "Profile URL must use a valid http:// or https:// URL.",
+      },
+    },
+    badges: {
+      type: [CPBadgeSchema],
+      default: [],
+      validate: {
+        validator: (value: unknown[]) => value.length <= 6,
+        message: "Add up to 6 badges only.",
+      },
+    },
+    accent: {
+      type: String,
+      trim: true,
+      maxlength: [80, "Accent must be 80 characters or fewer."],
+      default: "from-cyan-300/35 to-sky-500/10",
+    },
     dataSource: {
       type: String,
-      enum: ['seed', 'manual', 'cached', 'live'],
-      default: 'manual',
+      enum: ["manual", "imported", "live", "seed"],
+      default: "manual",
     },
     lastSyncedAt: Date,
-    fallbackEnabled: { type: Boolean, default: false },
-    images: { type: [String], default: [] },
+    order: { type: Number, default: 0 },
+    isVisible: { type: Boolean, default: true },
+    images: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (value: string[]) => value.length <= 6 && value.every(isValidHttpUrl),
+        message: "Add up to 6 valid image URLs.",
+      },
+    },
   },
   { timestamps: true }
 );
 
-const CPProfile = models.CPProfile || model('CPProfile', CPProfileSchema);
+const CPProfile = models.CPProfile || model("CPProfile", CPProfileSchema);
 export default CPProfile;

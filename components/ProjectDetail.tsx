@@ -2,139 +2,159 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Github } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowLeft, ArrowUpRight, ExternalLink } from "lucide-react";
+import { type ContentLink, type ProjectRecord } from "@/lib/data";
 
-type ProjectLink = {
-  name?: string;
-  url?: string;
+type ProjectDetailProps = {
+  project: ProjectRecord;
 };
 
-type ProjectDetailRecord = {
-  title: string;
-  description?: string;
-  techStack?: string[];
-  link?: string;
-  repo?: string;
-  links?: ProjectLink[];
-  images?: string[];
-};
+function normalizeLinks(project: ProjectRecord) {
+  const seen = new Set<string>();
+  const links: ContentLink[] = [
+    project.link ? { name: "Live Demo", url: project.link } : null,
+    project.repo ? { name: "Repository", url: project.repo } : null,
+    ...project.links,
+  ].filter((link): link is ContentLink => Boolean(link?.url));
 
-interface ProjectDetailProps {
-  project: ProjectDetailRecord;
+  return links.filter((link) => {
+    if (seen.has(link.url)) {
+      return false;
+    }
+
+    seen.add(link.url);
+    return true;
+  });
 }
 
-const container = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.1 },
-  },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
-};
-
 export default function ProjectDetailClient({ project }: ProjectDetailProps) {
+  const reducedMotion = useReducedMotion();
+  const projectLinks = normalizeLinks(project);
+  const descriptionBlocks = project.description
+    ? project.description
+        .split(/\n+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
   return (
     <motion.div
-      variants={container}
-      initial="hidden"
-      animate="visible"
-      className="max-w-4xl mx-auto px-6 pt-32 pb-24"
+      initial={reducedMotion ? undefined : { opacity: 0, y: 20 }}
+      animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+      transition={{ duration: 0.42, ease: "easeOut" }}
+      className="space-y-8"
     >
-      <motion.div variants={item}>
-        <Link
-          href="/projects"
-          className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-indigo-400 transition mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" /> Back to projects
-        </Link>
-      </motion.div>
+      <Link
+        href="/projects"
+        className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to projects
+      </Link>
 
-      <motion.header variants={item} className="mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+      <section className="command-surface command-outline rounded-[2rem] p-6 sm:p-7">
+        <h1 className="text-4xl font-semibold tracking-[-0.06em] text-white sm:text-5xl">
           {project.title}
         </h1>
+        <p className="mt-4 text-base leading-8 text-slate-300">
+          {project.description || "A project description will be added here."}
+        </p>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          {project.techStack?.map((tech: string) => (
-            <span
-              key={tech}
-              className="px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-300 text-sm font-medium border border-indigo-500/20"
-            >
-              {tech}
-            </span>
-          ))}
+        <div className="mt-5 flex flex-wrap gap-3 text-sm text-slate-400">
+          {[project.startDate, project.endDate].filter(Boolean).length > 0 ? (
+            <span>{[project.startDate, project.endDate].filter(Boolean).join(" - ")}</span>
+          ) : null}
+          {project.featured ? <span>Featured</span> : null}
         </div>
 
-        <div className="flex gap-3">
-          {project.link && (
-            <a
-              href={project.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-500 transition flex items-center gap-2 shadow-lg shadow-indigo-500/25"
-            >
-              Live Demo <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
-          {project.repo && (
-            <a
-              href={project.repo}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition flex items-center gap-2"
-            >
-              <Github className="w-4 h-4" /> Source Code
-            </a>
-          )}
-          {project.links?.map((l, i: number) => (
-            <a
-              key={`${l.url || l.name || "project-link"}-${i}`}
-              href={l.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white font-medium hover:bg-white/10 transition flex items-center gap-2"
-            >
-              {l.name} <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          ))}
-        </div>
-      </motion.header>
-
-      {/* Images gallery */}
-      {project.images?.length > 0 && (
-        <motion.div variants={item} className="mb-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {project.images.map((img: string, i: number) => (
-              <motion.div
-                key={i}
-                className="rounded-2xl overflow-hidden border border-white/5"
-                whileHover={{ scale: 1.02 }}
-                transition={{ duration: 0.3 }}
+        {projectLinks.length > 0 ? (
+          <div className="mt-6 flex flex-wrap gap-3">
+            {projectLinks.map((link) => (
+              <a
+                key={`${link.name}-${link.url}`}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-sm font-medium text-white"
               >
-                <Image
-                  src={img}
-                  alt={`${project.title} screenshot ${i + 1}`}
-                  width={1200}
-                  height={720}
-                  unoptimized
-                  className="h-auto w-full"
-                />
-              </motion.div>
+                {link.name}
+                <ExternalLink className="h-4 w-4" />
+              </a>
             ))}
           </div>
-        </motion.div>
-      )}
+        ) : null}
+      </section>
 
-      <motion.article variants={item} className="prose prose-invert prose-lg max-w-none">
-        <p className="text-slate-300 whitespace-pre-wrap leading-relaxed">
-          {project.description}
-        </p>
-      </motion.article>
+      {project.images.length > 0 ? (
+        <section className="grid gap-4 md:grid-cols-2">
+          {project.images.map((image, index) => (
+            <div key={`${image}-${index}`} className="overflow-hidden rounded-[1.8rem] border border-white/8 bg-slate-950/55">
+              <Image
+                src={image}
+                alt={`${project.title} screenshot ${index + 1}`}
+                width={1400}
+                height={900}
+                unoptimized
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ))}
+        </section>
+      ) : null}
+
+      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <div className="command-surface command-outline rounded-[2rem] p-6">
+          <h2 className="text-2xl font-semibold text-white">Details</h2>
+          <div className="mt-5 space-y-4 text-base leading-8 text-slate-300">
+            {(descriptionBlocks.length > 0 ? descriptionBlocks : [project.description || "Details coming soon."]).map(
+              (block) => (
+                <p key={block}>{block}</p>
+              )
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="command-surface command-outline rounded-[2rem] p-6">
+            <h2 className="text-2xl font-semibold text-white">Tech stack</h2>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {project.techStack.length > 0 ? (
+                project.techStack.map((tech) => (
+                  <span
+                    key={tech}
+                    className="rounded-full border border-white/8 bg-white/5 px-3 py-1.5 text-sm text-slate-200/85"
+                  >
+                    {tech}
+                  </span>
+                ))
+              ) : (
+                <p className="text-sm text-slate-400">Tech stack not available.</p>
+              )}
+            </div>
+          </div>
+
+          {projectLinks.length > 0 ? (
+            <div className="command-surface command-outline rounded-[2rem] p-6">
+              <h2 className="text-2xl font-semibold text-white">Links</h2>
+              <div className="mt-5 grid gap-3">
+                {projectLinks.map((link) => (
+                  <a
+                    key={`${link.name}-${link.url}-reference`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group flex items-center justify-between rounded-[1.25rem] border border-white/8 bg-slate-950/45 px-4 py-3 text-sm text-slate-300"
+                  >
+                    <span>{link.name}</span>
+                    <ArrowUpRight className="h-4 w-4 text-slate-500" />
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
     </motion.div>
   );
 }

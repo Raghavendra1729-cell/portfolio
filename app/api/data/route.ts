@@ -1,38 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/mongodb";
-import Project from "@/models/Project";
-import Experience from "@/models/Experience";
-import Education from "@/models/Education";
-import Skill from "@/models/Skill";
-import Achievement from "@/models/Achievement";
+import { isAuthenticated } from "@/lib/auth";
+import {
+  getContentDocumentById,
+  listContentDocuments,
+  resolveContentCollection,
+} from "@/lib/content-service";
 
-type QueryableModel = {
-  find: (query: Record<string, never>) => {
-    sort: (sort: Record<string, 1 | -1>) => Promise<unknown[]>;
-  };
-};
-
-const MODELS: Record<string, QueryableModel> = {
-  project: Project,
-  experience: Experience,
-  education: Education,
-  skill: Skill,
-  achievement: Achievement,
-};
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-  await dbConnect();
+  if (!isAuthenticated(req)) {
+    return NextResponse.json(
+      { success: false, message: "Your admin session is missing or has expired. Please sign in again." },
+      { status: 401 }
+    );
+  }
 
   const { searchParams } = new URL(req.url);
-  const collection = searchParams.get("collection");
-  const Model = MODELS[collection?.toLowerCase() || ""];
+  const collection = resolveContentCollection(searchParams.get("collection"));
+  const id = searchParams.get("id");
 
-  if (!Model) {
+  if (!collection) {
     return NextResponse.json({ success: false, message: "Invalid or missing collection" }, { status: 400 });
   }
 
   try {
-    const data = await Model.find({}).sort({ createdAt: -1 });
+    if (id) {
+      const data = await getContentDocumentById(collection, id, { includeHidden: true });
+
+      if (!data) {
+        return NextResponse.json({ success: false, message: "Content item not found." }, { status: 404 });
+      }
+
+      return NextResponse.json({ success: true, data });
+    }
+
+    const data = await listContentDocuments(collection, { includeHidden: true });
     return NextResponse.json({ success: true, data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch data.";
