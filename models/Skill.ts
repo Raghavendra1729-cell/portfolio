@@ -1,4 +1,5 @@
 import { Schema, model, models } from "mongoose";
+import { decodeSkillMapKey } from "@/lib/skill-map";
 
 function getMapEntries<T>(value: Map<string, T> | Record<string, T> | undefined) {
   if (!value) {
@@ -59,7 +60,9 @@ const SkillSchema = new Schema(
             value: Map<string, number> | Record<string, number>
           ) {
             const itemKeys = new Set((this.items || []).map(normalizeKey));
-            return getMapEntries(value).every(([key]) => itemKeys.has(normalizeKey(key)));
+            return getMapEntries(value).every(([key]) =>
+              itemKeys.has(normalizeKey(decodeSkillMapKey(key)))
+            );
           },
           message: "Proficiency values must map to existing skill items.",
         },
@@ -83,7 +86,9 @@ const SkillSchema = new Schema(
             value: Map<string, string> | Record<string, string>
           ) {
             const itemKeys = new Set((this.items || []).map(normalizeKey));
-            return getMapEntries(value).every(([key]) => itemKeys.has(normalizeKey(key)));
+            return getMapEntries(value).every(([key]) =>
+              itemKeys.has(normalizeKey(decodeSkillMapKey(key)))
+            );
           },
           message: "Focus signals must map to existing skill items.",
         },

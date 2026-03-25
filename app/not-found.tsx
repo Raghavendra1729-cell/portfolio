@@ -1,35 +1,39 @@
 import Link from "next/link";
-import { ArrowLeft, Radar } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 
 export default function NotFound() {
   return (
     <div className="px-4 pb-24 pt-12 sm:px-6 lg:px-10">
-      <div className="mx-auto max-w-3xl">
-        <div className="command-surface command-outline rounded-[2rem] p-8 text-center sm:p-10">
-          <div className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-[1.6rem] border border-fuchsia-400/16 bg-fuchsia-400/10 text-fuchsia-100">
-            <Radar className="h-7 w-7" />
-          </div>
-          <p className="mt-6 font-mono text-[0.68rem] uppercase tracking-[0.32em] text-slate-500">
-            Route unavailable
-          </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-[-0.05em] text-white">
-            The requested page or project dossier could not be found.
-          </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-8 text-slate-300">
-            The route may have moved, been removed, or the underlying record does not exist in the current dataset.
-          </p>
+      <div className="mx-auto max-w-4xl border-y border-white/6 py-16 sm:py-20">
+        <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-slate-500">
+          404 / Route unavailable
+        </p>
+        <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-[-0.07em] text-white sm:text-5xl lg:text-[4.2rem] lg:leading-[0.96]">
+          The requested page or case study is not available in the current portfolio structure.
+        </h1>
+        <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
+          The route may have moved, the record may no longer exist, or the URL may be incomplete.
+        </p>
 
+        <div className="mt-8 flex flex-wrap gap-3">
           <MagneticButton
             asChild
-            wrapperClassName="mt-8"
-            className="border-cyan-300/18 bg-cyan-300 px-6 py-3.5 text-slate-950"
+            className="border-white/10 bg-white px-6 py-3.5 text-slate-950"
           >
             <Link href="/">
               <ArrowLeft className="h-4 w-4" />
-              Return to home
+              Return home
             </Link>
           </MagneticButton>
+
+          <Link
+            href="/projects"
+            className="inline-flex items-center gap-2 px-1 py-3 text-sm text-slate-400 transition hover:text-white"
+          >
+            Browse projects
+            <ArrowUpRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </div>

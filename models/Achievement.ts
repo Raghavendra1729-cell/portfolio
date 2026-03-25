@@ -44,6 +44,8 @@ const AchievementSchema = new Schema(
       minlength: [20, "Description should be at least 20 characters."],
       maxlength: [500, "Description must be 500 characters or fewer."],
     },
+    featured: { type: Boolean, default: false },
+    order: { type: Number, default: 0 },
     images: {
       type: [String],
       default: [],

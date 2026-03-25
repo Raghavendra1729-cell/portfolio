@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAdminSecret, isAuthenticated } from "@/lib/auth";
+import { runPortfolioSeed } from "@/lib/seed";
 
 export const dynamic = "force-dynamic";
 
@@ -19,11 +20,25 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(
-    {
-      success: false,
-      message: "Seeded portfolio data has been removed. Populate content through MongoDB or the admin panel instead.",
-    },
-    { status: 410 }
-  );
+  try {
+    const result = await runPortfolioSeed();
+
+    return NextResponse.json(
+      {
+        ...result,
+        message: "Seed job completed.",
+      },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Seed job failed", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Seed job failed.",
+      },
+      { status: 500 }
+    );
+  }
 }

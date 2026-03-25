@@ -1,4 +1,6 @@
 export const ADMIN_COLLECTIONS = [
+  { id: "siteSettings", label: "Site Settings" },
+  { id: "landingPage", label: "Landing Page" },
   { id: "project", label: "Projects" },
   { id: "experience", label: "Experience" },
   { id: "education", label: "Education" },
@@ -9,6 +11,8 @@ export const ADMIN_COLLECTIONS = [
 ] as const;
 
 export const CONTENT_COLLECTIONS = [
+  { id: "siteSettings", label: "Site Settings" },
+  { id: "landingPage", label: "Landing Page" },
   { id: "achievement", label: "Achievements" },
   { id: "skill", label: "Skills" },
   { id: "project", label: "Projects" },
@@ -22,6 +26,8 @@ export type AdminCollectionId = (typeof ADMIN_COLLECTIONS)[number]["id"];
 export type ContentCollectionId = (typeof CONTENT_COLLECTIONS)[number]["id"];
 
 export const REQUIRED_FIELDS: Record<AdminCollectionId, string[]> = {
+  siteSettings: ["name", "role"],
+  landingPage: ["heroTitle", "heroSubtitle"],
   project: ["title"],
   experience: ["role", "company"],
   education: ["institution", "degree"],
@@ -30,6 +36,8 @@ export const REQUIRED_FIELDS: Record<AdminCollectionId, string[]> = {
   achievement: ["title", "description"],
   skill: ["category", "items"],
 };
+
+export const SINGLETON_COLLECTIONS = ["siteSettings", "landingPage"] as const;
 
 type ValidationResult = {
   success: boolean;
@@ -45,6 +53,36 @@ type ContentLink = {
 type ContentBadge = {
   label: string;
   value: string;
+};
+
+type ResumeAlternateLink = {
+  label: string;
+  href: string;
+};
+
+type SocialLink = {
+  kind: string;
+  label: string;
+  value: string;
+  href: string;
+};
+
+type PageIntro = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+type HighlightCard = {
+  title: string;
+  description: string;
+};
+
+type FeaturedSection = {
+  label: string;
+  title: string;
+  description: string;
+  href: string;
 };
 
 function asTrimmedString(value: unknown) {
@@ -150,6 +188,143 @@ function asBadges(value: unknown): ContentBadge[] {
     .filter((item): item is ContentBadge => Boolean(item));
 }
 
+function asResumeAlternateLinks(value: unknown): ResumeAlternateLink[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const link = item as { label?: unknown; href?: unknown };
+      const href = asTrimmedString(link.href);
+
+      if (!href) {
+        return null;
+      }
+
+      return {
+        label: asTrimmedString(link.label) || "Alternate resume",
+        href,
+      };
+    })
+    .filter((item): item is ResumeAlternateLink => Boolean(item));
+}
+
+function asSocialLinks(value: unknown): SocialLink[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const link = item as {
+        kind?: unknown;
+        label?: unknown;
+        value?: unknown;
+        href?: unknown;
+      };
+      const href = asTrimmedString(link.href);
+
+      if (!href) {
+        return null;
+      }
+
+      return {
+        kind: asTrimmedString(link.kind) || "other",
+        label: asTrimmedString(link.label) || "Link",
+        value: asTrimmedString(link.value),
+        href,
+      };
+    })
+    .filter((item): item is SocialLink => Boolean(item));
+}
+
+function asPageIntro(value: unknown): PageIntro {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      eyebrow: "",
+      title: "",
+      description: "",
+    };
+  }
+
+  const intro = value as Record<string, unknown>;
+
+  return {
+    eyebrow: asTrimmedString(intro.eyebrow),
+    title: asTrimmedString(intro.title),
+    description: asTrimmedString(intro.description),
+  };
+}
+
+function asHighlightCards(value: unknown): HighlightCard[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const card = item as { title?: unknown; description?: unknown };
+      const title = asTrimmedString(card.title);
+      const description = asTrimmedString(card.description);
+
+      if (!title || !description) {
+        return null;
+      }
+
+      return {
+        title,
+        description,
+      };
+    })
+    .filter((item): item is HighlightCard => Boolean(item));
+}
+
+function asFeaturedSections(value: unknown): FeaturedSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const section = item as {
+        label?: unknown;
+        title?: unknown;
+        description?: unknown;
+        href?: unknown;
+      };
+      const href = asTrimmedString(section.href);
+
+      if (!href) {
+        return null;
+      }
+
+      return {
+        label: asTrimmedString(section.label) || "Section",
+        title: asTrimmedString(section.title),
+        description: asTrimmedString(section.description),
+        href,
+      };
+    })
+    .filter((item): item is FeaturedSection => Boolean(item));
+}
+
 function asNumberMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, number>;
@@ -181,6 +356,18 @@ function isValidUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function isValidLinkHref(value: string) {
+  if (value.startsWith("/")) {
+    return true;
+  }
+
+  if (value.startsWith("mailto:")) {
+    return true;
+  }
+
+  return isValidUrl(value);
 }
 
 function withProjectLinks(input: Record<string, unknown>) {
@@ -219,14 +406,353 @@ export function isSupportedContentCollection(collection: string | null | undefin
   return CONTENT_COLLECTIONS.some((item) => item.id === collection);
 }
 
+export function isSingletonCollection(
+  collection: string | null | undefined
+): collection is (typeof SINGLETON_COLLECTIONS)[number] {
+  return SINGLETON_COLLECTIONS.some((item) => item === collection);
+}
+
 export function validateContentData(collection: ContentCollectionId, input: Record<string, unknown>): ValidationResult {
   const fieldErrors: Record<string, string> = {};
+
+  if (collection === "siteSettings") {
+    const name = asTrimmedString(input.name);
+    const role = asTrimmedString(input.role);
+    const location = asTrimmedString(input.location);
+    const availability = asTrimmedString(input.availability);
+    const profileBadge = asTrimmedString(input.profileBadge);
+    const profileImage = asTrimmedString(input.profileImage);
+    const profileImageAlt = asTrimmedString(input.profileImageAlt);
+    const footerBlurb = asTrimmedString(input.footerBlurb);
+    const aboutParagraphs = asStringArray(input.aboutParagraphs);
+    const primaryResumeLabel = asTrimmedString(input.primaryResumeLabel) || "Resume";
+    const primaryResumeViewHref = asTrimmedString(input.primaryResumeViewHref);
+    const primaryResumeDownloadHref = asTrimmedString(input.primaryResumeDownloadHref);
+    const alternateResumeLinks = asResumeAlternateLinks(input.alternateResumeLinks);
+    const socialLinks = asSocialLinks(input.socialLinks);
+    const pageIntro = {
+      about: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.about),
+      projects: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.projects),
+      experience: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.experience),
+      skills: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.skills),
+      achievements: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.achievements),
+      contact: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.contact),
+    };
+
+    if (name.length < 2) {
+      fieldErrors.name = "Name must be at least 2 characters.";
+    } else if (name.length > 60) {
+      fieldErrors.name = "Name must be 60 characters or fewer.";
+    }
+
+    if (role.length < 2) {
+      fieldErrors.role = "Role must be at least 2 characters.";
+    } else if (role.length > 80) {
+      fieldErrors.role = "Role must be 80 characters or fewer.";
+    }
+
+    if (location.length > 80) {
+      fieldErrors.location = "Location must be 80 characters or fewer.";
+    }
+
+    if (availability.length > 180) {
+      fieldErrors.availability = "Availability text must be 180 characters or fewer.";
+    }
+
+    if (profileBadge.length > 80) {
+      fieldErrors.profileBadge = "Profile badge must be 80 characters or fewer.";
+    }
+
+    if (profileImage && !isValidUrl(profileImage)) {
+      fieldErrors.profileImage = "Profile image must use a valid http:// or https:// URL.";
+    }
+
+    if (profileImageAlt.length > 120) {
+      fieldErrors.profileImageAlt = "Profile image alt text must be 120 characters or fewer.";
+    }
+
+    if (footerBlurb.length > 240) {
+      fieldErrors.footerBlurb = "Footer blurb must be 240 characters or fewer.";
+    }
+
+    if (aboutParagraphs.length === 0) {
+      fieldErrors.aboutParagraphs = "Add at least one about paragraph.";
+    } else if (aboutParagraphs.length > 6) {
+      fieldErrors.aboutParagraphs = "Add up to 6 about paragraphs.";
+    } else if (aboutParagraphs.some((item) => item.length > 320)) {
+      fieldErrors.aboutParagraphs = "Each about paragraph must be 320 characters or fewer.";
+    }
+
+    if (primaryResumeLabel.length > 40) {
+      fieldErrors.primaryResumeLabel = "Resume label must be 40 characters or fewer.";
+    }
+
+    if (primaryResumeViewHref && !isValidUrl(primaryResumeViewHref)) {
+      fieldErrors.primaryResumeViewHref = "Primary resume view link must use a valid http:// or https:// URL.";
+    }
+
+    if (primaryResumeDownloadHref && !isValidUrl(primaryResumeDownloadHref)) {
+      fieldErrors.primaryResumeDownloadHref =
+        "Primary resume download link must use a valid http:// or https:// URL.";
+    }
+
+    if (alternateResumeLinks.length > 4) {
+      fieldErrors.alternateResumeLinks = "Add up to 4 alternate resume links.";
+    } else if (alternateResumeLinks.some((item) => item.label.length > 40 || !isValidUrl(item.href))) {
+      fieldErrors.alternateResumeLinks =
+        "Alternate resume links must have short labels and valid http:// or https:// URLs.";
+    }
+
+    if (socialLinks.length === 0) {
+      fieldErrors.socialLinks = "Add at least one social or contact link.";
+    } else if (socialLinks.length > 8) {
+      fieldErrors.socialLinks = "Add up to 8 social links.";
+    } else if (
+      socialLinks.some(
+        (item) =>
+          !["email", "github", "linkedin", "website", "other"].includes(item.kind) ||
+          item.label.length > 32 ||
+          item.value.length > 120 ||
+          !isValidLinkHref(item.href)
+      )
+    ) {
+      fieldErrors.socialLinks =
+        "Social links must use supported kinds, short labels, and valid /, http://, https://, or mailto: URLs.";
+    }
+
+    (Object.entries(pageIntro) as Array<[keyof typeof pageIntro, PageIntro]>).forEach(([key, value]) => {
+      if (!value.title) {
+        fieldErrors[`pageIntro.${key}.title`] = "Each page intro needs a title.";
+      }
+
+      if (value.eyebrow.length > 40) {
+        fieldErrors[`pageIntro.${key}.eyebrow`] = "Eyebrows must be 40 characters or fewer.";
+      }
+
+      if (value.title.length > 90) {
+        fieldErrors[`pageIntro.${key}.title`] = "Titles must be 90 characters or fewer.";
+      }
+
+      if (value.description.length > 240) {
+        fieldErrors[`pageIntro.${key}.description`] = "Descriptions must be 240 characters or fewer.";
+      }
+    });
+
+    return {
+      success: Object.keys(fieldErrors).length === 0,
+      fieldErrors,
+      data: {
+        singletonKey: "site-settings",
+        name,
+        role,
+        location,
+        availability,
+        profileBadge,
+        profileImage,
+        profileImageAlt,
+        footerBlurb,
+        aboutParagraphs,
+        primaryResumeLabel,
+        primaryResumeViewHref,
+        primaryResumeDownloadHref,
+        alternateResumeLinks,
+        socialLinks,
+        pageIntro,
+      },
+    };
+  }
+
+  if (collection === "landingPage") {
+    const heroEyebrow = asTrimmedString(input.heroEyebrow);
+    const heroTitle = asTrimmedString(input.heroTitle);
+    const heroSubtitle = asTrimmedString(input.heroSubtitle);
+    const heroSummary = asTrimmedString(input.heroSummary);
+    const primaryCtaLabel = asTrimmedString(input.primaryCtaLabel);
+    const primaryCtaHref = asTrimmedString(input.primaryCtaHref);
+    const secondaryCtaLabel = asTrimmedString(input.secondaryCtaLabel);
+    const secondaryCtaHref = asTrimmedString(input.secondaryCtaHref);
+    const highlightCards = asHighlightCards(input.highlightCards);
+    const projectsEyebrow = asTrimmedString(input.projectsEyebrow);
+    const projectsTitle = asTrimmedString(input.projectsTitle);
+    const projectsDescription = asTrimmedString(input.projectsDescription);
+    const maxFeaturedProjects = asNumber(input.maxFeaturedProjects, 3);
+    const achievementsEyebrow = asTrimmedString(input.achievementsEyebrow);
+    const achievementsTitle = asTrimmedString(input.achievementsTitle);
+    const achievementsDescription = asTrimmedString(input.achievementsDescription);
+    const maxFeaturedAchievements = asNumber(input.maxFeaturedAchievements, 2);
+    const showAchievementsSection = asBoolean(input.showAchievementsSection);
+    const exploreEyebrow = asTrimmedString(input.exploreEyebrow);
+    const exploreTitle = asTrimmedString(input.exploreTitle);
+    const exploreDescription = asTrimmedString(input.exploreDescription);
+    const featuredSections = asFeaturedSections(input.featuredSections);
+    const contactEyebrow = asTrimmedString(input.contactEyebrow);
+    const contactTitle = asTrimmedString(input.contactTitle);
+    const contactDescription = asTrimmedString(input.contactDescription);
+
+    if (heroEyebrow.length > 40) {
+      fieldErrors.heroEyebrow = "Hero eyebrow must be 40 characters or fewer.";
+    }
+
+    if (heroTitle.length < 8) {
+      fieldErrors.heroTitle = "Hero title must be at least 8 characters.";
+    } else if (heroTitle.length > 140) {
+      fieldErrors.heroTitle = "Hero title must be 140 characters or fewer.";
+    }
+
+    if (heroSubtitle.length < 16) {
+      fieldErrors.heroSubtitle = "Hero subtitle must be at least 16 characters.";
+    } else if (heroSubtitle.length > 240) {
+      fieldErrors.heroSubtitle = "Hero subtitle must be 240 characters or fewer.";
+    }
+
+    if (heroSummary.length > 240) {
+      fieldErrors.heroSummary = "Hero summary must be 240 characters or fewer.";
+    }
+
+    if (primaryCtaLabel.length > 32) {
+      fieldErrors.primaryCtaLabel = "Primary CTA label must be 32 characters or fewer.";
+    }
+
+    if (primaryCtaHref && !isValidLinkHref(primaryCtaHref)) {
+      fieldErrors.primaryCtaHref =
+        "Primary CTA link must start with /, http://, https://, or mailto:.";
+    }
+
+    if (secondaryCtaLabel.length > 32) {
+      fieldErrors.secondaryCtaLabel = "Secondary CTA label must be 32 characters or fewer.";
+    }
+
+    if (secondaryCtaHref && !isValidLinkHref(secondaryCtaHref)) {
+      fieldErrors.secondaryCtaHref =
+        "Secondary CTA link must start with /, http://, https://, or mailto:.";
+    }
+
+    if (highlightCards.length < 2) {
+      fieldErrors.highlightCards = "Add at least 2 highlight cards.";
+    } else if (highlightCards.length > 4) {
+      fieldErrors.highlightCards = "Add up to 4 highlight cards.";
+    } else if (
+      highlightCards.some((item) => item.title.length > 60 || item.description.length > 180)
+    ) {
+      fieldErrors.highlightCards =
+        "Highlight cards need short titles and descriptions under 180 characters.";
+    }
+
+    if (projectsEyebrow.length > 40) {
+      fieldErrors.projectsEyebrow = "Projects eyebrow must be 40 characters or fewer.";
+    }
+
+    if (projectsTitle.length > 100) {
+      fieldErrors.projectsTitle = "Projects title must be 100 characters or fewer.";
+    }
+
+    if (projectsDescription.length > 220) {
+      fieldErrors.projectsDescription = "Projects description must be 220 characters or fewer.";
+    }
+
+    if (maxFeaturedProjects < 1 || maxFeaturedProjects > 6) {
+      fieldErrors.maxFeaturedProjects = "Show between 1 and 6 featured projects.";
+    }
+
+    if (achievementsEyebrow.length > 40) {
+      fieldErrors.achievementsEyebrow = "Achievements eyebrow must be 40 characters or fewer.";
+    }
+
+    if (achievementsTitle.length > 100) {
+      fieldErrors.achievementsTitle = "Achievements title must be 100 characters or fewer.";
+    }
+
+    if (achievementsDescription.length > 220) {
+      fieldErrors.achievementsDescription =
+        "Achievements description must be 220 characters or fewer.";
+    }
+
+    if (maxFeaturedAchievements < 0 || maxFeaturedAchievements > 4) {
+      fieldErrors.maxFeaturedAchievements = "Show between 0 and 4 featured achievements.";
+    }
+
+    if (exploreEyebrow.length > 40) {
+      fieldErrors.exploreEyebrow = "Explore eyebrow must be 40 characters or fewer.";
+    }
+
+    if (exploreTitle.length > 100) {
+      fieldErrors.exploreTitle = "Explore title must be 100 characters or fewer.";
+    }
+
+    if (exploreDescription.length > 220) {
+      fieldErrors.exploreDescription = "Explore description must be 220 characters or fewer.";
+    }
+
+    if (featuredSections.length === 0) {
+      fieldErrors.featuredSections = "Add at least one featured section card.";
+    } else if (featuredSections.length > 6) {
+      fieldErrors.featuredSections = "Add up to 6 featured section cards.";
+    } else if (
+      featuredSections.some(
+        (item) =>
+          item.label.length > 28 ||
+          item.title.length > 80 ||
+          item.description.length > 180 ||
+          !isValidLinkHref(item.href)
+      )
+    ) {
+      fieldErrors.featuredSections =
+        "Featured section cards need short copy and valid /, http://, https://, or mailto: links.";
+    }
+
+    if (contactEyebrow.length > 40) {
+      fieldErrors.contactEyebrow = "Contact eyebrow must be 40 characters or fewer.";
+    }
+
+    if (contactTitle.length > 100) {
+      fieldErrors.contactTitle = "Contact title must be 100 characters or fewer.";
+    }
+
+    if (contactDescription.length > 220) {
+      fieldErrors.contactDescription = "Contact description must be 220 characters or fewer.";
+    }
+
+    return {
+      success: Object.keys(fieldErrors).length === 0,
+      fieldErrors,
+      data: {
+        singletonKey: "landing-page",
+        heroEyebrow,
+        heroTitle,
+        heroSubtitle,
+        heroSummary,
+        primaryCtaLabel,
+        primaryCtaHref,
+        secondaryCtaLabel,
+        secondaryCtaHref,
+        highlightCards,
+        projectsEyebrow,
+        projectsTitle,
+        projectsDescription,
+        maxFeaturedProjects,
+        achievementsEyebrow,
+        achievementsTitle,
+        achievementsDescription,
+        maxFeaturedAchievements,
+        showAchievementsSection,
+        exploreEyebrow,
+        exploreTitle,
+        exploreDescription,
+        featuredSections,
+        contactEyebrow,
+        contactTitle,
+        contactDescription,
+      },
+    };
+  }
 
   if (collection === "achievement") {
     const title = asTrimmedString(input.title);
     const organization = asTrimmedString(input.organization);
     const date = asTrimmedString(input.date);
     const description = asTrimmedString(input.description);
+    const featured = asBoolean(input.featured);
+    const order = asNumber(input.order);
     const images = asStringArray(input.images);
     const links = asLinks(input.links);
 
@@ -272,6 +798,8 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         organization,
         date,
         description,
+        featured,
+        order,
         images,
         links,
       },

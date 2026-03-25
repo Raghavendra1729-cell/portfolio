@@ -36,6 +36,42 @@ type BadgeField = {
   value: string;
 };
 
+type ResumeAlternateField = {
+  label: string;
+  href: string;
+};
+
+type SocialLinkField = {
+  kind: string;
+  label: string;
+  value: string;
+  href: string;
+};
+
+type HighlightCardField = {
+  title: string;
+  description: string;
+};
+
+type FeaturedSectionField = {
+  label: string;
+  title: string;
+  description: string;
+  href: string;
+};
+
+type PageIntroField = {
+  eyebrow: string;
+  title: string;
+  description: string;
+};
+
+const EMPTY_PAGE_INTRO: PageIntroField = {
+  eyebrow: "",
+  title: "",
+  description: "",
+};
+
 function getStringValue(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
 }
@@ -50,6 +86,65 @@ function getStringArrayValue(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function getObjectArrayValue<T extends Record<string, string>>(
+  value: unknown,
+  keys: Array<keyof T & string>
+) {
+  if (!Array.isArray(value)) {
+    return [] as T[];
+  }
+
+  return value.reduce<T[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const record = item as Record<string, unknown>;
+    items.push(
+      Object.fromEntries(keys.map((key) => [key, getStringValue(record[key]).trim()])) as T
+    );
+    return items;
+  }, []);
+}
+
+function getPageIntroValue(value: unknown): PageIntroField {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return { ...EMPTY_PAGE_INTRO };
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return {
+    eyebrow: getStringValue(record.eyebrow).trim(),
+    title: getStringValue(record.title).trim(),
+    description: getStringValue(record.description).trim(),
+  };
+}
+
+function getPageIntroMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      about: { ...EMPTY_PAGE_INTRO },
+      projects: { ...EMPTY_PAGE_INTRO },
+      experience: { ...EMPTY_PAGE_INTRO },
+      skills: { ...EMPTY_PAGE_INTRO },
+      achievements: { ...EMPTY_PAGE_INTRO },
+      contact: { ...EMPTY_PAGE_INTRO },
+    };
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return {
+    about: getPageIntroValue(record.about),
+    projects: getPageIntroValue(record.projects),
+    experience: getPageIntroValue(record.experience),
+    skills: getPageIntroValue(record.skills),
+    achievements: getPageIntroValue(record.achievements),
+    contact: getPageIntroValue(record.contact),
+  };
 }
 
 function getNumberMap(value: unknown) {
@@ -213,6 +308,56 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
       images: [],
     };
 
+    if (collection === "siteSettings") {
+      return {
+        name: "",
+        role: "",
+        location: "",
+        availability: "",
+        profileBadge: "",
+        profileImage: "",
+        profileImageAlt: "",
+        footerBlurb: "",
+        aboutParagraphs: [],
+        primaryResumeLabel: "Resume",
+        primaryResumeViewHref: "",
+        primaryResumeDownloadHref: "",
+        alternateResumeLinks: [],
+        socialLinks: [],
+        pageIntro: getPageIntroMap(undefined),
+      };
+    }
+
+    if (collection === "landingPage") {
+      return {
+        heroEyebrow: "",
+        heroTitle: "",
+        heroSubtitle: "",
+        heroSummary: "",
+        primaryCtaLabel: "",
+        primaryCtaHref: "",
+        secondaryCtaLabel: "",
+        secondaryCtaHref: "",
+        highlightCards: [],
+        projectsEyebrow: "",
+        projectsTitle: "",
+        projectsDescription: "",
+        maxFeaturedProjects: 3,
+        achievementsEyebrow: "",
+        achievementsTitle: "",
+        achievementsDescription: "",
+        maxFeaturedAchievements: 2,
+        showAchievementsSection: true,
+        exploreEyebrow: "",
+        exploreTitle: "",
+        exploreDescription: "",
+        featuredSections: [],
+        contactEyebrow: "",
+        contactTitle: "",
+        contactDescription: "",
+      };
+    }
+
     if (collection === "project") {
       return {
         ...baseState,
@@ -262,7 +407,10 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
     }
 
     if (collection === "achievement") {
-      return baseState;
+      return {
+        ...baseState,
+        featured: false,
+      };
     }
 
     if (collection === "skill") {
@@ -277,15 +425,25 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
     return baseState;
   }
 
-  const normalized = {
-    ...data,
-    linksText: getLinkLines(data.links),
-    badgesText: getBadgeLines(data.badges),
-    proficiency: getNumberMap(data.proficiency),
-    focusSignals: getStringMap(data.focusSignals),
-    dataSource: collection === "cpProfile" ? getStringValue(data.dataSource) || "manual" : data.dataSource,
-    isVisible: collection === "cpProfile" ? !("isVisible" in data) || getBooleanValue(data.isVisible) : data.isVisible,
-  };
+    const normalized = {
+      ...data,
+      linksText: getLinkLines(data.links),
+      badgesText: getBadgeLines(data.badges),
+      proficiency: getNumberMap(data.proficiency),
+      focusSignals: getStringMap(data.focusSignals),
+      dataSource: collection === "cpProfile" ? getStringValue(data.dataSource) || "manual" : data.dataSource,
+      isVisible: collection === "cpProfile" ? !("isVisible" in data) || getBooleanValue(data.isVisible) : data.isVisible,
+      alternateResumeLinks: getObjectArrayValue<ResumeAlternateField>(data.alternateResumeLinks, ["label", "href"]),
+      socialLinks: getObjectArrayValue<SocialLinkField>(data.socialLinks, ["kind", "label", "value", "href"]),
+      highlightCards: getObjectArrayValue<HighlightCardField>(data.highlightCards, ["title", "description"]),
+      featuredSections: getObjectArrayValue<FeaturedSectionField>(data.featuredSections, [
+        "label",
+        "title",
+        "description",
+        "href",
+      ]),
+      pageIntro: getPageIntroMap(data.pageIntro),
+    };
 
   if (collection === "skill") {
     return syncSkillMaps(data.items, normalized);
@@ -315,6 +473,14 @@ function normalizeSubmissionData(collection: ContentCollectionId, data: Record<s
 }
 
 function getCollectionLabel(collection: ContentCollectionId) {
+  if (collection === "siteSettings") {
+    return "Site Settings";
+  }
+
+  if (collection === "landingPage") {
+    return "Landing Page";
+  }
+
   if (collection === "cpProfile") {
     return "CP Profile";
   }
@@ -323,6 +489,14 @@ function getCollectionLabel(collection: ContentCollectionId) {
 }
 
 function getPreferredTitle(collection: ContentCollectionId, data: Record<string, unknown>) {
+  if (collection === "siteSettings") {
+    return getStringValue(data.name).trim() || "Site Settings";
+  }
+
+  if (collection === "landingPage") {
+    return getStringValue(data.heroTitle).trim() || "Landing Page";
+  }
+
   if (collection === "project" || collection === "hackathon" || collection === "achievement") {
     return getStringValue(data.title).trim();
   }
@@ -343,6 +517,14 @@ function getPreferredTitle(collection: ContentCollectionId, data: Record<string,
 }
 
 function getPreferredSubtitle(collection: ContentCollectionId, data: Record<string, unknown>) {
+  if (collection === "siteSettings") {
+    return getStringValue(data.role).trim() || "Shared portfolio identity and profile settings.";
+  }
+
+  if (collection === "landingPage") {
+    return getStringValue(data.heroSubtitle).trim() || "Landing page structure and hero content.";
+  }
+
   if (collection === "project") {
     return getStringValue(data.description).trim();
   }
@@ -386,6 +568,16 @@ type SummaryData = {
 };
 
 const COLLECTION_TIPS: Record<ContentCollectionId, string[]> = {
+  siteSettings: [
+    "Treat this as the single source of truth for identity, resume links, social links, and shared page copy.",
+    "Use the profile image uploader here instead of hardcoding homepage assets.",
+    "Keep page intros concise so every route opens with a clean, scannable message.",
+  ],
+  landingPage: [
+    "This document controls hero messaging, homepage section structure, and curated navigation cards.",
+    "Featured project and achievement counts work best when the corresponding content items are flagged as featured.",
+    "Use restrained copy here so the homepage feels intentional instead of crowded.",
+  ],
   project: [
     "Use the display order to control which projects rise first.",
     "Put the most useful link first so it becomes the primary CTA.",
@@ -432,6 +624,63 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
   const badges: string[] = [];
   const stats: SummaryStat[] = [];
   const notes: string[] = [];
+
+  if (collection === "siteSettings") {
+    const socialLinks = getObjectArrayValue<SocialLinkField>(formData.socialLinks, [
+      "kind",
+      "label",
+      "value",
+      "href",
+    ]);
+    const alternateResumeLinks = getObjectArrayValue<ResumeAlternateField>(
+      formData.alternateResumeLinks,
+      ["label", "href"]
+    );
+    const pageIntro = getPageIntroMap(formData.pageIntro);
+
+    if (getStringValue(formData.location).trim()) {
+      badges.push(getStringValue(formData.location).trim());
+    }
+
+    if (getStringValue(formData.availability).trim()) {
+      badges.push("Availability set");
+    }
+
+    stats.push(
+      { label: "Social", value: String(socialLinks.length) },
+      { label: "Resume", value: String(alternateResumeLinks.length + (getStringValue(formData.primaryResumeViewHref).trim() ? 1 : 0)) },
+      { label: "Pages", value: String(Object.values(pageIntro).filter((item) => item.title).length) }
+    );
+    notes.push(...getStringArrayValue(formData.aboutParagraphs).slice(0, 2));
+  }
+
+  if (collection === "landingPage") {
+    const highlightCards = getObjectArrayValue<HighlightCardField>(formData.highlightCards, [
+      "title",
+      "description",
+    ]);
+    const featuredSections = getObjectArrayValue<FeaturedSectionField>(formData.featuredSections, [
+      "label",
+      "title",
+      "description",
+      "href",
+    ]);
+
+    if (getStringValue(formData.primaryCtaLabel).trim()) {
+      badges.push(`Primary CTA: ${getStringValue(formData.primaryCtaLabel).trim()}`);
+    }
+
+    if (getStringValue(formData.secondaryCtaLabel).trim()) {
+      badges.push(`Secondary CTA: ${getStringValue(formData.secondaryCtaLabel).trim()}`);
+    }
+
+    stats.push(
+      { label: "Highlights", value: String(highlightCards.length) },
+      { label: "Routes", value: String(featuredSections.length) },
+      { label: "Projects", value: getStringValue(formData.maxFeaturedProjects).trim() || "3" }
+    );
+    notes.push(...highlightCards.slice(0, 2).map((item) => item.title));
+  }
 
   if (collection === "project") {
     const techStack = getStringArrayValue(formData.techStack);
@@ -542,6 +791,10 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
     const organization = getStringValue(formData.organization).trim();
     const date = getStringValue(formData.date).trim();
 
+    if (getBooleanValue(formData.featured)) {
+      badges.push("Featured");
+    }
+
     if (organization) {
       badges.push(organization);
     }
@@ -594,6 +847,20 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
 }
 
 function getSectionIntro(collection: ContentCollectionId) {
+  if (collection === "siteSettings") {
+    return {
+      title: "Portfolio settings",
+      description: "Manage identity, profile media, resume links, social links, and shared page copy from one source of truth.",
+    };
+  }
+
+  if (collection === "landingPage") {
+    return {
+      title: "Landing page settings",
+      description: "Control homepage hero content, curated sections, featured counts, and the overall first impression.",
+    };
+  }
+
   if (collection === "project") {
     return {
       title: "Project entry",
@@ -677,6 +944,41 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     });
     setFormError(null);
     setErrorType(undefined);
+  };
+
+  const updatePageIntroField = (
+    section: keyof ReturnType<typeof getPageIntroMap>,
+    field: keyof PageIntroField,
+    value: string
+  ) => {
+    const current = getPageIntroMap(formData.pageIntro);
+
+    updateField("pageIntro", {
+      ...current,
+      [section]: {
+        ...current[section],
+        [field]: value,
+      },
+    });
+
+    setFieldErrors((prev) => {
+      const key = `pageIntro.${section}.${field}`;
+
+      if (!prev[key]) {
+        return prev;
+      }
+
+      const nextErrors = { ...prev };
+      delete nextErrors[key];
+      return nextErrors;
+    });
+  };
+
+  const updateStructuredListField = <T extends Record<string, string>>(
+    name: string,
+    nextItems: T[]
+  ) => {
+    updateField(name, nextItems);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -832,6 +1134,222 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-8">
+          {collection === "siteSettings" && (
+            <>
+              <FormSection title="Identity" description="Centralize the public identity, location, availability, and footer copy used across the portfolio.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <InputGroup label="Name" name="name" value={formData.name} onChange={handleChange} required error={fieldErrors.name} placeholder="Raghavendra" />
+                  <InputGroup label="Role" name="role" value={formData.role} onChange={handleChange} required error={fieldErrors.role} placeholder="Software Engineer" />
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <InputGroup label="Location" name="location" value={formData.location} onChange={handleChange} error={fieldErrors.location} placeholder="India" />
+                  <InputGroup label="Availability" name="availability" value={formData.availability} onChange={handleChange} error={fieldErrors.availability} placeholder="Open to internships and full-time roles." />
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <InputGroup label="Profile Badge" name="profileBadge" value={formData.profileBadge} onChange={handleChange} error={fieldErrors.profileBadge} placeholder="Engineering + product execution" />
+                  <InputGroup label="Footer Blurb" name="footerBlurb" value={formData.footerBlurb} onChange={handleChange} error={fieldErrors.footerBlurb} placeholder="Short footer summary." />
+                </div>
+              </FormSection>
+
+              <FormSection title="Profile media" description="Manage the main portrait used by the homepage hero and profile presentation.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1fr]">
+                  <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                    <label className="mb-4 block text-sm font-medium text-foreground">Profile Image</label>
+                    <FileUpload
+                      label="Upload Profile Image"
+                      initialUrl={typeof formData.profileImage === "string" ? formData.profileImage : undefined}
+                      onUpload={(url) => handleImageUpload(url, "profileImage")}
+                    />
+                    {fieldErrors.profileImage ? <p className="mt-2 text-sm text-destructive">{fieldErrors.profileImage}</p> : null}
+                  </div>
+                  <InputGroup label="Image Alt Text" name="profileImageAlt" value={formData.profileImageAlt} onChange={handleChange} error={fieldErrors.profileImageAlt} placeholder="Portrait of Raghavendra" />
+                </div>
+              </FormSection>
+
+              <FormSection title="Resume links" description="Set the primary view/download actions and any alternate resume destinations.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                  <InputGroup label="Primary Label" name="primaryResumeLabel" value={formData.primaryResumeLabel} onChange={handleChange} error={fieldErrors.primaryResumeLabel} placeholder="Resume" />
+                  <InputGroup label="View Link" name="primaryResumeViewHref" type="url" value={formData.primaryResumeViewHref} onChange={handleChange} error={fieldErrors.primaryResumeViewHref} placeholder="https://..." />
+                  <InputGroup label="Download Link" name="primaryResumeDownloadHref" type="url" value={formData.primaryResumeDownloadHref} onChange={handleChange} error={fieldErrors.primaryResumeDownloadHref} placeholder="https://..." />
+                </div>
+                <StructuredArrayGroup
+                  label="Alternate Resume Links"
+                  description="Optional backup or alternate-format resume links."
+                  items={getObjectArrayValue<ResumeAlternateField>(formData.alternateResumeLinks, ["label", "href"])}
+                  onChange={(items) => updateStructuredListField("alternateResumeLinks", items)}
+                  addLabel="Add alternate link"
+                  error={fieldErrors.alternateResumeLinks}
+                  fields={[
+                    { key: "label", label: "Label", placeholder: "Drive mirror" },
+                    { key: "href", label: "URL", placeholder: "https://...", type: "url" },
+                  ]}
+                />
+              </FormSection>
+
+              <FormSection title="Contact links" description="These links power the footer, contact page, and social navigation surfaces.">
+                <StructuredArrayGroup
+                  label="Social Links"
+                  description="Add email, LinkedIn, GitHub, website, or any other key contact path."
+                  items={getObjectArrayValue<SocialLinkField>(formData.socialLinks, ["kind", "label", "value", "href"])}
+                  onChange={(items) => updateStructuredListField("socialLinks", items)}
+                  addLabel="Add social link"
+                  error={fieldErrors.socialLinks}
+                  fields={[
+                    {
+                      key: "kind",
+                      label: "Kind",
+                      placeholder: "email / github / linkedin / website / other",
+                    },
+                    { key: "label", label: "Label", placeholder: "GitHub" },
+                    { key: "value", label: "Display Value", placeholder: "raghavendra1729-cell" },
+                    { key: "href", label: "URL", placeholder: "https://...", type: "url" },
+                  ]}
+                />
+              </FormSection>
+
+              <FormSection title="About content" description="Keep the primary about copy here so the public about page stays editable without touching code.">
+                <ArrayInputGroup
+                  label="About Paragraphs"
+                  name="aboutParagraphs"
+                  value={getStringArrayValue(formData.aboutParagraphs)}
+                  onChange={(e) => handleArrayChange(e, "aboutParagraphs")}
+                  placeholder="Paragraph one&#10;Paragraph two"
+                  error={fieldErrors.aboutParagraphs}
+                />
+              </FormSection>
+
+              <FormSection title="Page intros" description="These fields control the intro copy on the main public routes.">
+                <div className="grid gap-4">
+                  {(
+                    [
+                      ["about", "About"],
+                      ["projects", "Projects"],
+                      ["experience", "Experience"],
+                      ["skills", "Skills"],
+                      ["achievements", "Achievements"],
+                      ["contact", "Contact"],
+                    ] as Array<[keyof ReturnType<typeof getPageIntroMap>, string]>
+                  ).map(([section, label]) => (
+                    <PageIntroEditor
+                      key={section}
+                      label={label}
+                      value={getPageIntroMap(formData.pageIntro)[section]}
+                      onChange={(field, value) => updatePageIntroField(section, field, value)}
+                      errors={{
+                        eyebrow: fieldErrors[`pageIntro.${section}.eyebrow`],
+                        title: fieldErrors[`pageIntro.${section}.title`],
+                        description: fieldErrors[`pageIntro.${section}.description`],
+                      }}
+                    />
+                  ))}
+                </div>
+              </FormSection>
+            </>
+          )}
+
+          {collection === "landingPage" && (
+            <>
+              <FormSection title="Hero" description="Set the homepage hero copy, supporting summary, and the primary internal CTAs.">
+                <div className="grid grid-cols-1 gap-6">
+                  <InputGroup label="Eyebrow" name="heroEyebrow" value={formData.heroEyebrow} onChange={handleChange} error={fieldErrors.heroEyebrow} placeholder="Software engineer portfolio" />
+                  <TextAreaGroup label="Hero Title" name="heroTitle" value={formData.heroTitle} onChange={handleChange} rows={3} required error={fieldErrors.heroTitle} placeholder="Building product-grade software with clarity, speed, and technical range." />
+                  <TextAreaGroup label="Hero Subtitle" name="heroSubtitle" value={formData.heroSubtitle} onChange={handleChange} rows={3} required error={fieldErrors.heroSubtitle} placeholder="Short, sharp value statement." />
+                  <TextAreaGroup label="Hero Summary" name="heroSummary" value={formData.heroSummary} onChange={handleChange} rows={3} error={fieldErrors.heroSummary} placeholder="Optional supporting summary under the hero." />
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="grid gap-6">
+                    <InputGroup label="Primary CTA Label" name="primaryCtaLabel" value={formData.primaryCtaLabel} onChange={handleChange} error={fieldErrors.primaryCtaLabel} placeholder="View projects" />
+                    <InputGroup label="Primary CTA Link" name="primaryCtaHref" value={formData.primaryCtaHref} onChange={handleChange} error={fieldErrors.primaryCtaHref} placeholder="/projects" />
+                  </div>
+                  <div className="grid gap-6">
+                    <InputGroup label="Secondary CTA Label" name="secondaryCtaLabel" value={formData.secondaryCtaLabel} onChange={handleChange} error={fieldErrors.secondaryCtaLabel} placeholder="Contact me" />
+                    <InputGroup label="Secondary CTA Link" name="secondaryCtaHref" value={formData.secondaryCtaHref} onChange={handleChange} error={fieldErrors.secondaryCtaHref} placeholder="/contact" />
+                  </div>
+                </div>
+              </FormSection>
+
+              <FormSection title="Signal cards" description="These are the compact highlight cards directly under the hero.">
+                <StructuredArrayGroup
+                  label="Highlight Cards"
+                  description="Use short titles and clean descriptions."
+                  items={getObjectArrayValue<HighlightCardField>(formData.highlightCards, ["title", "description"])}
+                  onChange={(items) => updateStructuredListField("highlightCards", items)}
+                  addLabel="Add highlight card"
+                  error={fieldErrors.highlightCards}
+                  fields={[
+                    { key: "title", label: "Title", placeholder: "Execution" },
+                    {
+                      key: "description",
+                      label: "Description",
+                      placeholder: "Short supporting statement.",
+                      type: "textarea",
+                    },
+                  ]}
+                />
+              </FormSection>
+
+              <FormSection title="Featured projects" description="Control the copy and project count for the homepage project showcase.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                  <InputGroup label="Eyebrow" name="projectsEyebrow" value={formData.projectsEyebrow} onChange={handleChange} error={fieldErrors.projectsEyebrow} placeholder="Featured work" />
+                  <InputGroup label="Title" name="projectsTitle" value={formData.projectsTitle} onChange={handleChange} error={fieldErrors.projectsTitle} placeholder="Selected projects with strong signal." />
+                  <InputGroup label="Max Items" name="maxFeaturedProjects" type="number" value={formData.maxFeaturedProjects} onChange={handleChange} error={fieldErrors.maxFeaturedProjects} placeholder="3" />
+                </div>
+                <TextAreaGroup label="Description" name="projectsDescription" value={formData.projectsDescription} onChange={handleChange} rows={3} error={fieldErrors.projectsDescription} placeholder="Short intro for the featured projects section." />
+              </FormSection>
+
+              <FormSection title="Featured achievements" description="Optionally surface a restrained achievements section on the homepage.">
+                <CheckboxGroup
+                  label="Show achievements section"
+                  name="showAchievementsSection"
+                  checked={getBooleanValue(formData.showAchievementsSection)}
+                  onChange={handleChange}
+                  description="Hide this if you want the homepage to stay tighter."
+                />
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                  <InputGroup label="Eyebrow" name="achievementsEyebrow" value={formData.achievementsEyebrow} onChange={handleChange} error={fieldErrors.achievementsEyebrow} placeholder="Highlights" />
+                  <InputGroup label="Title" name="achievementsTitle" value={formData.achievementsTitle} onChange={handleChange} error={fieldErrors.achievementsTitle} placeholder="Proof through outcomes." />
+                  <InputGroup label="Max Items" name="maxFeaturedAchievements" type="number" value={formData.maxFeaturedAchievements} onChange={handleChange} error={fieldErrors.maxFeaturedAchievements} placeholder="2" />
+                </div>
+                <TextAreaGroup label="Description" name="achievementsDescription" value={formData.achievementsDescription} onChange={handleChange} rows={3} error={fieldErrors.achievementsDescription} placeholder="Short intro for highlighted achievements." />
+              </FormSection>
+
+              <FormSection title="Explore section" description="Curate the homepage navigation cards that route visitors into deeper sections.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <InputGroup label="Eyebrow" name="exploreEyebrow" value={formData.exploreEyebrow} onChange={handleChange} error={fieldErrors.exploreEyebrow} placeholder="Explore" />
+                  <InputGroup label="Title" name="exploreTitle" value={formData.exploreTitle} onChange={handleChange} error={fieldErrors.exploreTitle} placeholder="Go deeper where it matters to you." />
+                </div>
+                <TextAreaGroup label="Description" name="exploreDescription" value={formData.exploreDescription} onChange={handleChange} rows={3} error={fieldErrors.exploreDescription} placeholder="Short explore section introduction." />
+                <StructuredArrayGroup
+                  label="Featured Section Cards"
+                  description="These cards should feel curated, not exhaustive."
+                  items={getObjectArrayValue<FeaturedSectionField>(formData.featuredSections, ["label", "title", "description", "href"])}
+                  onChange={(items) => updateStructuredListField("featuredSections", items)}
+                  addLabel="Add section card"
+                  error={fieldErrors.featuredSections}
+                  fields={[
+                    { key: "label", label: "Label", placeholder: "Projects" },
+                    { key: "title", label: "Title", placeholder: "Case studies and shipped work" },
+                    {
+                      key: "description",
+                      label: "Description",
+                      placeholder: "Short explanation for this route.",
+                      type: "textarea",
+                    },
+                    { key: "href", label: "Link", placeholder: "/projects" },
+                  ]}
+                />
+              </FormSection>
+
+              <FormSection title="Closing CTA" description="Set the final low-noise CTA block at the bottom of the landing page.">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <InputGroup label="Eyebrow" name="contactEyebrow" value={formData.contactEyebrow} onChange={handleChange} error={fieldErrors.contactEyebrow} placeholder="Next step" />
+                  <InputGroup label="Title" name="contactTitle" value={formData.contactTitle} onChange={handleChange} error={fieldErrors.contactTitle} placeholder="Resume, links, and direct contact stay one click away." />
+                </div>
+                <TextAreaGroup label="Description" name="contactDescription" value={formData.contactDescription} onChange={handleChange} rows={3} error={fieldErrors.contactDescription} placeholder="Closing supporting copy." />
+              </FormSection>
+            </>
+          )}
+
           {collection === "project" && (
             <>
               <FormSection title="Core details" description="Name the project, explain what it does, and list the main technologies involved.">
@@ -1172,6 +1690,13 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   <InputGroup label="Date Received" name="date" value={formData.date} onChange={handleChange} error={fieldErrors.date} placeholder="Apr 2025" />
                   <InputGroup label="Display Order" name="order" type="number" value={formData.order} onChange={handleChange} placeholder="0" />
                 </div>
+                <CheckboxGroup
+                  label="Feature on landing page"
+                  name="featured"
+                  checked={getBooleanValue(formData.featured)}
+                  onChange={handleChange}
+                  description="Featured achievements are eligible for the homepage highlights section."
+                />
                 <TextAreaGroup label="Description" name="description" value={formData.description} onChange={handleChange} required error={fieldErrors.description} placeholder="One concise paragraph explaining the result and why it matters." />
               </FormSection>
 
@@ -1395,6 +1920,164 @@ function FormSidebarCard({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function PageIntroEditor({
+  label,
+  value,
+  onChange,
+  errors,
+}: {
+  label: string;
+  value: PageIntroField;
+  onChange: (field: keyof PageIntroField, value: string) => void;
+  errors?: Partial<Record<keyof PageIntroField, string | undefined>>;
+}) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-5">
+      <h5 className="text-sm font-semibold uppercase tracking-[0.24em] text-foreground/80">{label}</h5>
+      <div className="mt-4 grid gap-4">
+        <InputGroup
+          label="Eyebrow"
+          name={`${label}-eyebrow`}
+          value={value.eyebrow}
+          onChange={(event) => onChange("eyebrow", event.target.value)}
+          error={errors?.eyebrow}
+          placeholder={label}
+        />
+        <InputGroup
+          label="Title"
+          name={`${label}-title`}
+          value={value.title}
+          onChange={(event) => onChange("title", event.target.value)}
+          error={errors?.title}
+          placeholder={`${label}.`}
+        />
+        <TextAreaGroup
+          label="Description"
+          name={`${label}-description`}
+          value={value.description}
+          onChange={(event) => onChange("description", event.target.value)}
+          rows={3}
+          error={errors?.description}
+          placeholder={`Short intro for the ${label.toLowerCase()} page.`}
+        />
+      </div>
+    </div>
+  );
+}
+
+type StructuredArrayField = {
+  key: string;
+  label: string;
+  placeholder?: string;
+  type?: "text" | "url" | "textarea";
+};
+
+function StructuredArrayGroup<T extends Record<string, string>>({
+  label,
+  description,
+  items,
+  onChange,
+  fields,
+  addLabel,
+  error,
+}: {
+  label: string;
+  description?: string;
+  items: T[];
+  onChange: (items: T[]) => void;
+  fields: StructuredArrayField[];
+  addLabel: string;
+  error?: string;
+}) {
+  const createItem = () =>
+    Object.fromEntries(fields.map((field) => [field.key, ""])) as T;
+
+  const updateItem = (index: number, key: string, value: string) => {
+    const nextItems = items.map((item, itemIndex) =>
+      itemIndex === index ? ({ ...item, [key]: value } as T) : item
+    );
+    onChange(nextItems);
+  };
+
+  const addItem = () => {
+    onChange([...items, createItem()]);
+  };
+
+  const removeItem = (index: number) => {
+    onChange(items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-muted/15 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <label className="text-sm font-medium text-foreground">{label}</label>
+          {description ? <p className="mt-1 text-sm leading-7 text-muted-foreground">{description}</p> : null}
+        </div>
+        <button
+          type="button"
+          onClick={addItem}
+          className="rounded-full border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition hover:border-primary/30 hover:text-primary"
+        >
+          {addLabel}
+        </button>
+      </div>
+
+      <div className="mt-5 space-y-4">
+        {items.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border/70 bg-background/60 px-4 py-5 text-sm text-muted-foreground">
+            No items added yet.
+          </div>
+        ) : (
+          items.map((item, index) => (
+            <div key={`${label}-${index}`} className="rounded-xl border border-border/60 bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-medium text-foreground">{label} {index + 1}</p>
+                <button
+                  type="button"
+                  onClick={() => removeItem(index)}
+                  className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/15"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-4">
+                {fields.map((field) =>
+                  field.type === "textarea" ? (
+                    <TextAreaGroup
+                      key={field.key}
+                      label={field.label}
+                      name={`${label}-${field.key}-${index}`}
+                      value={item[field.key]}
+                      onChange={(event) => updateItem(index, field.key, event.target.value)}
+                      rows={3}
+                      placeholder={field.placeholder}
+                    />
+                  ) : (
+                    <InputGroup
+                      key={field.key}
+                      label={field.label}
+                      name={`${label}-${field.key}-${index}`}
+                      value={item[field.key]}
+                      onChange={(event) => updateItem(index, field.key, event.target.value)}
+                      type={field.type || "text"}
+                      placeholder={field.placeholder}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

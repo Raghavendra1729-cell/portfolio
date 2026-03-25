@@ -18,18 +18,26 @@ import {
   Edit3,
   FolderKanban,
   GraduationCap,
+  Home,
   LayoutDashboard,
   LogOut,
   Medal,
   Plus,
   Search,
+  Settings2,
   Trash2,
   Code,
   Trophy,
 } from "lucide-react";
-import { ADMIN_COLLECTIONS, type AdminCollectionId } from "@/lib/content-schema";
+import {
+  ADMIN_COLLECTIONS,
+  isSingletonCollection,
+  type AdminCollectionId,
+} from "@/lib/content-schema";
 
 const COLLECTION_ICONS: Record<AdminCollectionId, typeof Award> = {
+  siteSettings: Settings2,
+  landingPage: Home,
   project: FolderKanban,
   experience: BriefcaseBusiness,
   education: GraduationCap,
@@ -41,6 +49,8 @@ const COLLECTION_ICONS: Record<AdminCollectionId, typeof Award> = {
 
 type AdminItem = {
   _id: string;
+  name?: string;
+  heroTitle?: string;
   title?: string;
   role?: string;
   institution?: string;
@@ -71,11 +81,30 @@ type AdminApiError = {
 };
 
 function getItemTitle(item: AdminItem) {
-  return item.title || item.role || item.institution || item.category || item.platform || "Untitled entry";
+  return (
+    item.name ||
+    item.heroTitle ||
+    item.title ||
+    item.role ||
+    item.institution ||
+    item.category ||
+    item.platform ||
+    "Untitled entry"
+  );
 }
 
 function getItemSubtitle(item: AdminItem) {
-  return item.company || item.degree || item.organization || item.username || item.event || item.status || item.result || "";
+  return (
+    item.company ||
+    item.degree ||
+    item.organization ||
+    item.username ||
+    item.event ||
+    item.status ||
+    item.result ||
+    item.role ||
+    ""
+  );
 }
 
 function getItemBadges(item: AdminItem) {
@@ -120,7 +149,7 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [authMessage, setAuthMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<AdminCollectionId>("project");
+  const [activeTab, setActiveTab] = useState<AdminCollectionId>("siteSettings");
 
   const [items, setItems] = useState<AdminItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -349,6 +378,7 @@ export default function AdminPage() {
   const activeCollectionSingular = activeCollectionLabel.endsWith("s")
     ? activeCollectionLabel.slice(0, -1)
     : activeCollectionLabel;
+  const singletonCollection = isSingletonCollection(activeTab);
 
   return (
     <>
@@ -404,28 +434,41 @@ export default function AdminPage() {
                     <ActiveIcon className="h-8 w-8 text-primary/80" />
                     <span>{activeCollectionLabel}</span>
                   </h2>
-                  <p className="mt-1 text-muted-foreground">Manage your {activeCollectionLabel.toLowerCase()} entries.</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {singletonCollection
+                      ? `Manage the shared ${activeCollectionLabel.toLowerCase()} document.`
+                      : `Manage your ${activeCollectionLabel.toLowerCase()} entries.`}
+                  </p>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {filteredItems.length} visible in this view{searchTerm ? ` • ${items.length} total records` : ""}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <input
-                      type="text"
-                      placeholder={`Search ${activeCollectionLabel.toLowerCase()}...`}
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full rounded-lg border bg-card py-2.5 pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-primary/20 md:w-64"
-                    />
-                  </div>
+                  {!singletonCollection ? (
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <input
+                        type="text"
+                        placeholder={`Search ${activeCollectionLabel.toLowerCase()}...`}
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full rounded-lg border bg-card py-2.5 pl-9 pr-4 text-sm shadow-sm outline-none focus:ring-2 focus:ring-primary/20 md:w-64"
+                      />
+                    </div>
+                  ) : null}
                   <button
-                    onClick={() => setIsCreating(true)}
+                    onClick={() => {
+                      if (singletonCollection && items[0]) {
+                        setIsEditing(items[0]);
+                        return;
+                      }
+
+                      setIsCreating(true);
+                    }}
                     className="flex items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/20 transition hover:opacity-90"
                   >
-                    <Plus className="h-4 w-4" /> Add {activeCollectionSingular}
+                    <Plus className="h-4 w-4" /> {singletonCollection ? `Edit ${activeCollectionSingular}` : `Add ${activeCollectionSingular}`}
                   </button>
                 </div>
               </div>
@@ -456,9 +499,13 @@ export default function AdminPage() {
                       <ActiveIcon className="h-8 w-8 text-muted-foreground" />
                     </div>
                     <h3 className="text-lg font-medium text-foreground">No {activeCollectionLabel.toLowerCase()} items yet</h3>
-                    <p className="mb-6 mt-1 text-sm text-muted-foreground">Create your first entry to get started.</p>
+                    <p className="mb-6 mt-1 text-sm text-muted-foreground">
+                      {singletonCollection
+                        ? "Create the shared settings document to unlock centralized editing."
+                        : "Create your first entry to get started."}
+                    </p>
                     <button onClick={() => setIsCreating(true)} className="font-medium text-primary hover:underline">
-                      + Create {activeCollectionSingular}
+                      + {singletonCollection ? `Create ${activeCollectionSingular}` : `Create ${activeCollectionSingular}`}
                     </button>
                   </div>
                 ) : filteredItems.length === 0 ? (
@@ -471,7 +518,7 @@ export default function AdminPage() {
                     >
                       <div className="flex items-start gap-4">
                         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
-                          {(item.title?.[0] || item.role?.[0] || item.company?.[0] || item.platform?.[0] || "?").toUpperCase()}
+                          {(item.name?.[0] || item.heroTitle?.[0] || item.title?.[0] || item.role?.[0] || item.company?.[0] || item.platform?.[0] || "?").toUpperCase()}
                         </div>
 
                         <div>

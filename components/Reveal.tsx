@@ -2,6 +2,7 @@
 
 import { motion, type Variants, useReducedMotion } from "framer-motion";
 import { type ReactNode } from "react";
+import { MOTION_EASE } from "@/lib/motion";
 
 type RevealVariant = "fade-up" | "fade-left" | "fade-right" | "scale";
 
@@ -46,9 +47,8 @@ function createItemVariants(
         ? { duration: 0.2, delay }
         : {
             delay,
-            type: "spring",
-            duration: 0.28,
-            ease: "easeOut",
+            duration: 0.5,
+            ease: MOTION_EASE,
           },
     },
   };

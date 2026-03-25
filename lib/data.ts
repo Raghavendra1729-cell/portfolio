@@ -1,5 +1,31 @@
+import { cache } from "react";
 import { headers } from "next/headers";
-import { getContentDocumentById, listContentDocuments } from "@/lib/content-service";
+import {
+  getContentDocumentById,
+  getSingletonContentDocument,
+  listContentDocuments,
+} from "@/lib/content-service";
+import {
+  defaultLandingPage,
+  defaultSiteSettings,
+  type LandingFeaturedSection,
+  type LandingHighlight,
+  type LandingPageRecord,
+  type PageIntro,
+  type ResumeAlternateLink,
+  type SiteSettingsRecord,
+  type SocialLink,
+} from "@/lib/site-content";
+
+export type {
+  LandingFeaturedSection,
+  LandingHighlight,
+  LandingPageRecord,
+  PageIntro,
+  ResumeAlternateLink,
+  SiteSettingsRecord,
+  SocialLink,
+} from "@/lib/site-content";
 
 export type ContentLink = {
   name: string;
@@ -69,6 +95,8 @@ export type AchievementRecord = BaseRecord & {
   organization?: string;
   date?: string;
   description: string;
+  featured: boolean;
+  order?: number;
   images: string[];
   links: ContentLink[];
 };
@@ -115,6 +143,8 @@ export type HackathonRecord = BaseRecord & {
 };
 
 export type CollectionMap = {
+  siteSettings: SiteSettingsRecord;
+  landingPage: LandingPageRecord;
   project: ProjectRecord;
   experience: ExperienceRecord;
   education: EducationRecord;
@@ -200,6 +230,126 @@ function asBadges(value: unknown): CPBadgeRecord[] {
     }, []);
 }
 
+function asPageIntro(value: unknown): PageIntro {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+  return {
+    eyebrow: asString(record.eyebrow),
+    title: asString(record.title),
+    description: asString(record.description),
+  };
+}
+
+function asResumeLinks(value: unknown): ResumeAlternateLink[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<ResumeAlternateLink[]>((links, item) => {
+    if (!item || typeof item !== "object") {
+      return links;
+    }
+
+    const link = item as { label?: unknown; href?: unknown };
+    const href = asString(link.href).trim();
+
+    if (!href) {
+      return links;
+    }
+
+    links.push({
+      label: asString(link.label).trim() || "Resume",
+      href,
+    });
+
+    return links;
+  }, []);
+}
+
+function asSocialLinks(value: unknown): SocialLink[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<SocialLink[]>((links, item) => {
+    if (!item || typeof item !== "object") {
+      return links;
+    }
+
+    const link = item as { kind?: unknown; label?: unknown; value?: unknown; href?: unknown };
+    const href = asString(link.href).trim();
+
+    if (!href) {
+      return links;
+    }
+
+    links.push({
+      kind: (asString(link.kind).trim() || "other") as SocialLink["kind"],
+      label: asString(link.label).trim() || "Link",
+      value: asString(link.value).trim(),
+      href,
+    });
+
+    return links;
+  }, []);
+}
+
+function asLandingHighlights(value: unknown): LandingHighlight[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<LandingHighlight[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const card = item as { title?: unknown; description?: unknown };
+    const title = asString(card.title).trim();
+    const description = asString(card.description).trim();
+
+    if (!title || !description) {
+      return items;
+    }
+
+    items.push({ title, description });
+    return items;
+  }, []);
+}
+
+function asFeaturedSections(value: unknown): LandingFeaturedSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<LandingFeaturedSection[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const section = item as {
+      label?: unknown;
+      title?: unknown;
+      description?: unknown;
+      href?: unknown;
+    };
+    const href = asString(section.href).trim();
+
+    if (!href) {
+      return items;
+    }
+
+    items.push({
+      label: asString(section.label).trim() || "Section",
+      title: asString(section.title).trim(),
+      description: asString(section.description).trim(),
+      href,
+    });
+
+    return items;
+  }, []);
+}
+
 function asNumberMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, number>;
@@ -226,6 +376,114 @@ function asStringMap(value: unknown) {
 
 function normalizeCollectionItem<K extends CollectionId>(collection: K, item: unknown): CollectionMap[K] {
   const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+
+  if (collection === "siteSettings") {
+    const pageIntroRecord =
+      record.pageIntro && typeof record.pageIntro === "object"
+        ? (record.pageIntro as Record<string, unknown>)
+        : {};
+
+    return {
+      _id: asString(record._id),
+      singletonKey: "site-settings",
+      name: asString(record.name) || defaultSiteSettings.name,
+      role: asString(record.role) || defaultSiteSettings.role,
+      location: asString(record.location) || defaultSiteSettings.location,
+      availability: asString(record.availability) || defaultSiteSettings.availability,
+      profileBadge: asString(record.profileBadge) || defaultSiteSettings.profileBadge,
+      profileImage: asString(record.profileImage),
+      profileImageAlt: asString(record.profileImageAlt) || defaultSiteSettings.profileImageAlt,
+      footerBlurb: asString(record.footerBlurb) || defaultSiteSettings.footerBlurb,
+      aboutParagraphs: asStringArray(record.aboutParagraphs).length
+        ? asStringArray(record.aboutParagraphs)
+        : defaultSiteSettings.aboutParagraphs,
+      primaryResumeLabel:
+        asString(record.primaryResumeLabel) || defaultSiteSettings.primaryResumeLabel,
+      primaryResumeViewHref: asString(record.primaryResumeViewHref),
+      primaryResumeDownloadHref: asString(record.primaryResumeDownloadHref),
+      alternateResumeLinks: asResumeLinks(record.alternateResumeLinks),
+      socialLinks: asSocialLinks(record.socialLinks).length
+        ? asSocialLinks(record.socialLinks)
+        : defaultSiteSettings.socialLinks,
+      pageIntro: {
+        about: {
+          ...defaultSiteSettings.pageIntro.about,
+          ...asPageIntro(pageIntroRecord.about),
+        },
+        projects: {
+          ...defaultSiteSettings.pageIntro.projects,
+          ...asPageIntro(pageIntroRecord.projects),
+        },
+        experience: {
+          ...defaultSiteSettings.pageIntro.experience,
+          ...asPageIntro(pageIntroRecord.experience),
+        },
+        skills: {
+          ...defaultSiteSettings.pageIntro.skills,
+          ...asPageIntro(pageIntroRecord.skills),
+        },
+        achievements: {
+          ...defaultSiteSettings.pageIntro.achievements,
+          ...asPageIntro(pageIntroRecord.achievements),
+        },
+        contact: {
+          ...defaultSiteSettings.pageIntro.contact,
+          ...asPageIntro(pageIntroRecord.contact),
+        },
+      },
+    } as CollectionMap[K];
+  }
+
+  if (collection === "landingPage") {
+    return {
+      _id: asString(record._id),
+      singletonKey: "landing-page",
+      heroEyebrow: asString(record.heroEyebrow) || defaultLandingPage.heroEyebrow,
+      heroTitle: asString(record.heroTitle) || defaultLandingPage.heroTitle,
+      heroSubtitle: asString(record.heroSubtitle) || defaultLandingPage.heroSubtitle,
+      heroSummary: asString(record.heroSummary) || defaultLandingPage.heroSummary,
+      primaryCtaLabel: asString(record.primaryCtaLabel) || defaultLandingPage.primaryCtaLabel,
+      primaryCtaHref: asString(record.primaryCtaHref) || defaultLandingPage.primaryCtaHref,
+      secondaryCtaLabel:
+        asString(record.secondaryCtaLabel) || defaultLandingPage.secondaryCtaLabel,
+      secondaryCtaHref: asString(record.secondaryCtaHref) || defaultLandingPage.secondaryCtaHref,
+      highlightCards: asLandingHighlights(record.highlightCards).length
+        ? asLandingHighlights(record.highlightCards)
+        : defaultLandingPage.highlightCards,
+      projectsEyebrow: asString(record.projectsEyebrow) || defaultLandingPage.projectsEyebrow,
+      projectsTitle: asString(record.projectsTitle) || defaultLandingPage.projectsTitle,
+      projectsDescription:
+        asString(record.projectsDescription) || defaultLandingPage.projectsDescription,
+      maxFeaturedProjects:
+        asNumber(record.maxFeaturedProjects) || defaultLandingPage.maxFeaturedProjects,
+      achievementsEyebrow:
+        asString(record.achievementsEyebrow) || defaultLandingPage.achievementsEyebrow,
+      achievementsTitle:
+        asString(record.achievementsTitle) || defaultLandingPage.achievementsTitle,
+      achievementsDescription:
+        asString(record.achievementsDescription) ||
+        defaultLandingPage.achievementsDescription,
+      maxFeaturedAchievements:
+        typeof record.maxFeaturedAchievements === "number"
+          ? record.maxFeaturedAchievements
+          : defaultLandingPage.maxFeaturedAchievements,
+      showAchievementsSection:
+        typeof record.showAchievementsSection === "boolean"
+          ? record.showAchievementsSection
+          : defaultLandingPage.showAchievementsSection,
+      exploreEyebrow: asString(record.exploreEyebrow) || defaultLandingPage.exploreEyebrow,
+      exploreTitle: asString(record.exploreTitle) || defaultLandingPage.exploreTitle,
+      exploreDescription:
+        asString(record.exploreDescription) || defaultLandingPage.exploreDescription,
+      featuredSections: asFeaturedSections(record.featuredSections).length
+        ? asFeaturedSections(record.featuredSections)
+        : defaultLandingPage.featuredSections,
+      contactEyebrow: asString(record.contactEyebrow) || defaultLandingPage.contactEyebrow,
+      contactTitle: asString(record.contactTitle) || defaultLandingPage.contactTitle,
+      contactDescription:
+        asString(record.contactDescription) || defaultLandingPage.contactDescription,
+    } as CollectionMap[K];
+  }
 
   if (collection === "project") {
     return {
@@ -308,6 +566,8 @@ function normalizeCollectionItem<K extends CollectionId>(collection: K, item: un
       organization: asString(record.organization) || undefined,
       date: asString(record.date) || undefined,
       description: asString(record.description),
+      featured: asBoolean(record.featured),
+      order: asNumber(record.order),
       images: asStringArray(record.images),
       links: asLinks(record.links),
     } as CollectionMap[K];
@@ -447,3 +707,23 @@ export async function getItem<K extends CollectionId>(collection: K, id: string)
     return null;
   }
 }
+
+export const getSiteSettings = cache(async (): Promise<SiteSettingsRecord> => {
+  try {
+    const item = await getSingletonContentDocument("siteSettings");
+    return normalizeCollectionItem("siteSettings", item);
+  } catch (error) {
+    console.error("Failed to fetch site settings", error);
+    return normalizeCollectionItem("siteSettings", null);
+  }
+});
+
+export const getLandingPage = cache(async (): Promise<LandingPageRecord> => {
+  try {
+    const item = await getSingletonContentDocument("landingPage");
+    return normalizeCollectionItem("landingPage", item);
+  } catch (error) {
+    console.error("Failed to fetch landing page settings", error);
+    return normalizeCollectionItem("landingPage", null);
+  }
+});

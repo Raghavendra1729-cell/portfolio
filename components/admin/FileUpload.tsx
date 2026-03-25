@@ -114,14 +114,14 @@ export default function FileUpload({ initialUrl, onUpload, label = "Upload Image
 
   return (
     <div className="mb-4">
-      <label className="mb-2 block text-sm font-medium capitalize text-gray-700">{label}</label>
+      <label className="mb-2 block text-sm font-medium capitalize text-foreground">{label}</label>
 
       <div
         className={cn(
           "relative overflow-hidden rounded-2xl border border-dashed transition",
           isDragging
-            ? "border-primary bg-primary/5 shadow-[0_0_0_1px_rgba(99,102,241,0.2)]"
-            : "border-gray-300 bg-gray-50/40 hover:border-primary/40 hover:bg-gray-50"
+            ? "border-primary bg-primary/8 shadow-[0_0_0_1px_rgba(125,145,224,0.18)]"
+            : "border-border bg-muted/25 hover:border-primary/40 hover:bg-muted/35"
         )}
         onDragOver={(event) => {
           event.preventDefault();
@@ -159,19 +159,19 @@ export default function FileUpload({ initialUrl, onUpload, label = "Upload Image
             onClick={() => inputRef.current?.click()}
             disabled={isUploading}
           >
-            <div className="rounded-full bg-blue-50 p-3 text-blue-500">
+            <div className="rounded-full bg-primary/10 p-3 text-primary">
               {isUploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <UploadCloud className="h-6 w-6" />}
             </div>
             <div>
-              <p className="text-sm font-medium text-gray-700">
+              <p className="text-sm font-medium text-foreground">
                 {isDragging ? "Drop image to upload" : "Drag & drop or click to upload"}
               </p>
-              <p className="mt-1 text-xs text-gray-400">PNG, JPG, GIF, WEBP • instant preview enabled</p>
+              <p className="mt-1 text-xs text-muted-foreground">PNG, JPG, GIF, WEBP • instant preview enabled</p>
             </div>
           </button>
         ) : (
           <div className="grid gap-4 p-4 md:grid-cols-[1fr_auto] md:items-center">
-            <div className="relative h-48 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+            <div className="relative h-48 overflow-hidden rounded-xl border border-border bg-muted/30">
               <Image
                 src={previewUrl}
                 alt="Preview"
@@ -186,12 +186,12 @@ export default function FileUpload({ initialUrl, onUpload, label = "Upload Image
             </div>
 
             <div className="flex flex-col gap-3 md:w-44">
-              <div className="rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-600 shadow-sm">
-                <div className="flex items-center gap-2 font-medium text-gray-800">
-                  <ImagePlus className="h-4 w-4 text-blue-500" />
+              <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground shadow-sm">
+                <div className="flex items-center gap-2 font-medium text-foreground">
+                  <ImagePlus className="h-4 w-4 text-primary" />
                   Preview ready
                 </div>
-                <p className="mt-2 text-xs leading-5 text-gray-500">
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
                   Replace it anytime by dropping a new image into the zone.
                 </p>
               </div>
@@ -199,7 +199,7 @@ export default function FileUpload({ initialUrl, onUpload, label = "Upload Image
                 type="button"
                 onClick={() => inputRef.current?.click()}
                 disabled={isUploading}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted/40"
               >
                 Replace image
               </button>

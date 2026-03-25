@@ -3,7 +3,10 @@ import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CursorSpotlight from "@/components/CursorSpotlight";
 import { Toaster } from "sonner";
+import { getSiteSettings } from "@/lib/data";
+import { siteConfig } from "@/lib/site-config";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -22,25 +25,25 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Raghavendra | Software Engineer",
-    template: "%s | Raghavendra",
+    default: `${siteConfig.name} | ${siteConfig.role}`,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    "Portfolio of Raghavendra, a software engineer and student focused on adaptable problem solving, strong execution, and clear product-minded engineering.",
+  description: siteConfig.description,
   openGraph: {
-    title: "Raghavendra | Software Engineer",
-    description:
-      "Portfolio of Raghavendra, a software engineer and student focused on adaptable problem solving, strong execution, and clear product-minded engineering.",
+    title: `${siteConfig.name} | ${siteConfig.role}`,
+    description: siteConfig.description,
     type: "website",
     url: siteUrl,
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteSettings = await getSiteSettings();
+
   return (
     <html
       lang="en"
@@ -51,21 +54,22 @@ export default function RootLayout({
       >
         <a
           href="#main-content"
-          className="sr-only z-[70] rounded-full border border-cyan-300/40 bg-slate-900 px-4 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+          className="sr-only z-[70] rounded-full border border-[color:var(--accent-soft)] bg-[#0a0d14] px-4 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
         >
           Skip to content
         </a>
         <div className="site-background pointer-events-none fixed inset-0 -z-20" />
         <div className="site-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
-        <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.16),transparent_36%),radial-gradient(circle_at_18%_12%,rgba(217,70,239,0.14),transparent_20%)]" />
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_78%_82%,rgba(16,185,129,0.14),transparent_26%),radial-gradient(circle_at_30%_100%,rgba(34,211,238,0.12),transparent_32%)]" />
-        <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(2,6,23,0.08),rgba(2,6,23,0.38)_24%,rgba(2,6,23,0.88)_100%)]" />
+        <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.04),transparent_18%)]" />
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_78%_82%,rgba(255,255,255,0.05),transparent_26%),radial-gradient(circle_at_24%_100%,rgba(255,255,255,0.03),transparent_32%)]" />
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(2,4,8,0.02),rgba(2,4,8,0.22)_24%,rgba(2,4,8,0.9)_100%)]" />
+        <CursorSpotlight />
 
-        <Navbar />
+        <Navbar siteSettings={siteSettings} />
         <main id="main-content" className="min-h-screen pt-24">
           {children}
         </main>
-        <Footer />
+        <Footer siteSettings={siteSettings} />
         <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </body>
     </html>

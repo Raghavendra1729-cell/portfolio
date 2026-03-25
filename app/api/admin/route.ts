@@ -9,6 +9,7 @@ import {
   setAdminSessionCookie,
 } from "@/lib/auth";
 import {
+  isSingletonCollection,
   isSupportedContentCollection,
   validateContentData,
   type ContentCollectionId,
@@ -21,14 +22,24 @@ import Skill from "@/models/Skill";
 import Achievement from "@/models/Achievement";
 import CPProfile from "@/models/CPProfile";
 import Hackathon from "@/models/Hackathon";
+import SiteSettings from "@/models/SiteSettings";
+import LandingPage from "@/models/LandingPage";
+import { encodeSkillMap } from "@/lib/skill-map";
 
 type AdminModel = {
   create: (data: Record<string, unknown>) => Promise<unknown>;
   findByIdAndUpdate: (id: string, data: Record<string, unknown>, options: { new: boolean; runValidators: boolean }) => Promise<unknown>;
   findByIdAndDelete: (id: string) => Promise<unknown>;
+  findOneAndUpdate: (
+    filter: Record<string, unknown>,
+    data: Record<string, unknown>,
+    options: { new: boolean; runValidators: boolean; upsert: boolean; setDefaultsOnInsert: boolean }
+  ) => Promise<unknown>;
 };
 
 const MODELS: Record<ContentCollectionId, AdminModel> = {
+  siteSettings: SiteSettings,
+  landingPage: LandingPage,
   project: Project,
   experience: Experience,
   education: Education,
@@ -76,11 +87,29 @@ async function parseJsonBody(req: NextRequest) {
   }
 }
 
-function normalizeData(data: Record<string, unknown>) {
+function normalizeData(collection: ContentCollectionId, data: Record<string, unknown>) {
   const clonedData = { ...data };
   delete clonedData._id;
   delete clonedData.__v;
+
+  if (collection === "skill") {
+    clonedData.proficiency = encodeSkillMap<number>(
+      clonedData.proficiency as Record<string, number> | undefined
+    );
+    clonedData.focusSignals = encodeSkillMap<string>(
+      clonedData.focusSignals as Record<string, string> | undefined
+    );
+  }
+
   return clonedData;
+}
+
+function getSingletonFilter(collection: ContentCollectionId) {
+  if (collection === "siteSettings") {
+    return { singletonKey: "site-settings" };
+  }
+
+  return { singletonKey: "landing-page" };
 }
 
 function handleMutationError(error: unknown) {
@@ -178,7 +207,18 @@ export async function POST(req: NextRequest) {
   await dbConnect();
 
   try {
-    const newItem = await Model.create(normalizeData(validation.data));
+    const newItem = isSingletonCollection(collection)
+      ? await Model.findOneAndUpdate(
+          getSingletonFilter(collection),
+          normalizeData(collection, validation.data),
+          {
+            new: true,
+            runValidators: true,
+            upsert: true,
+            setDefaultsOnInsert: true,
+          }
+        )
+      : await Model.create(normalizeData(collection, validation.data));
     revalidatePath("/", "layout");
 
     return NextResponse.json({ success: true, data: newItem, message: "Item created successfully." }, { status: 201 });
@@ -231,10 +271,21 @@ export async function PUT(req: NextRequest) {
   await dbConnect();
 
   try {
-    const updatedItem = await Model.findByIdAndUpdate(id, normalizeData(validation.data), {
-      new: true,
-      runValidators: true,
-    });
+    const updatedItem = isSingletonCollection(collection)
+      ? await Model.findOneAndUpdate(
+          getSingletonFilter(collection),
+          normalizeData(collection, validation.data),
+          {
+            new: true,
+            runValidators: true,
+            upsert: true,
+            setDefaultsOnInsert: true,
+          }
+        )
+      : await Model.findByIdAndUpdate(id, normalizeData(collection, validation.data), {
+          new: true,
+          runValidators: true,
+        });
 
     if (!updatedItem) {
       return errorResponse(404, "validation", "The item you tried to update could not be found.");
