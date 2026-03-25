@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ArrowDownToLine, ArrowUpRight } from "lucide-react";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { cn } from "@/lib/utils";
 import type { ResumeAlternateLink, SiteSettingsRecord } from "@/lib/data";
@@ -51,9 +52,6 @@ export default function ResumeActions({
 }) {
   const hasPrimaryView = Boolean(siteSettings.primaryResumeViewHref);
   const hasPrimaryDownload = Boolean(siteSettings.primaryResumeDownloadHref);
-  const buttonClassName = compact
-    ? "px-4 py-2.5 text-sm"
-    : "px-5 py-3 text-sm";
 
   if (!hasPrimaryView && !hasPrimaryDownload && siteSettings.alternateResumeLinks.length === 0) {
     return null;
@@ -91,13 +89,11 @@ export default function ResumeActions({
         {hasPrimaryView ? (
           <MagneticButton
             asChild
-            className={cn(
-              "rounded-2xl border-white/10 bg-white text-slate-950 shadow-[0_18px_40px_rgba(255,255,255,0.08)]",
-              buttonClassName
-            )}
+            className="surface-cut border-white/12 bg-white px-5 py-3 text-slate-950 shadow-[0_20px_44px_rgba(255,255,255,0.08)]"
           >
             <a href={siteSettings.primaryResumeViewHref} {...getAnchorProps(siteSettings.primaryResumeViewHref)}>
               {siteSettings.primaryResumeLabel || "View resume"}
+              <ArrowUpRight className="h-4 w-4" />
             </a>
           </MagneticButton>
         ) : null}
@@ -105,10 +101,7 @@ export default function ResumeActions({
         {hasPrimaryDownload ? (
           <MagneticButton
             asChild
-            className={cn(
-              "rounded-2xl border-white/10 bg-transparent text-white",
-              buttonClassName
-            )}
+            className="surface-cut border-white/10 bg-white/[0.03] px-5 py-3 text-white"
           >
             <a
               href={siteSettings.primaryResumeDownloadHref}
@@ -116,6 +109,7 @@ export default function ResumeActions({
               {...getAnchorProps(siteSettings.primaryResumeDownloadHref)}
             >
               Download resume
+              <ArrowDownToLine className="h-4 w-4" />
             </a>
           </MagneticButton>
         ) : null}
@@ -125,7 +119,7 @@ export default function ResumeActions({
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {siteSettings.alternateResumeLinks.map((link: ResumeAlternateLink) => (
             <InlineResumeLink key={`${link.label}-${link.href}`} href={link.href}>
-              <span>{link.label}</span>
+              {link.label}
             </InlineResumeLink>
           ))}
         </div>

@@ -6,10 +6,10 @@ import { motion, useMotionValue, useReducedMotion, useSpring } from "framer-moti
 export default function CursorSpotlight() {
   const reducedMotion = useReducedMotion();
   const [enabled, setEnabled] = useState(false);
-  const pointerX = useMotionValue(-240);
-  const pointerY = useMotionValue(-240);
-  const x = useSpring(pointerX, { stiffness: 140, damping: 26, mass: 0.8 });
-  const y = useSpring(pointerY, { stiffness: 140, damping: 26, mass: 0.8 });
+  const pointerX = useMotionValue(-220);
+  const pointerY = useMotionValue(-220);
+  const x = useSpring(pointerX, { stiffness: 120, damping: 28, mass: 0.9 });
+  const y = useSpring(pointerY, { stiffness: 120, damping: 28, mass: 0.9 });
 
   useEffect(() => {
     if (reducedMotion) {
@@ -21,8 +21,8 @@ export default function CursorSpotlight() {
     updateState();
 
     const handlePointerMove = (event: PointerEvent) => {
-      pointerX.set(event.clientX - 192);
-      pointerY.set(event.clientY - 192);
+      pointerX.set(event.clientX - 176);
+      pointerY.set(event.clientY - 176);
     };
 
     window.addEventListener("pointermove", handlePointerMove, { passive: true });
@@ -42,7 +42,7 @@ export default function CursorSpotlight() {
     <motion.div
       aria-hidden="true"
       style={{ x, y }}
-      className="pointer-events-none fixed left-0 top-0 z-30 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.025)_28%,rgba(17,24,39,0)_68%)] opacity-70 blur-3xl"
+      className="pointer-events-none fixed left-0 top-0 z-30 h-88 w-88 rounded-full bg-[radial-gradient(circle,rgba(142,236,255,0.12)_0%,rgba(142,236,255,0.05)_24%,rgba(255,255,255,0.025)_42%,rgba(8,12,18,0)_70%)] opacity-80 blur-3xl"
     />
   );
 }

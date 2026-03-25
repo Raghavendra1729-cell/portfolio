@@ -1,6 +1,15 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import {
+  defaultAchievements,
+  defaultCpProfiles,
+  defaultEducation,
+  defaultExperience,
+  defaultHackathons,
+  defaultProjects,
+  defaultSkills,
+} from "@/content/collections";
+import {
   getContentDocumentById,
   getSingletonContentDocument,
   listContentDocuments,
@@ -160,6 +169,16 @@ type ApiPayload<T> = {
   success?: boolean;
   data?: T;
 };
+
+const COLLECTION_FALLBACKS = {
+  project: defaultProjects,
+  experience: defaultExperience,
+  education: defaultEducation,
+  skill: defaultSkills,
+  achievement: defaultAchievements,
+  cpProfile: defaultCpProfiles,
+  hackathon: defaultHackathons,
+} as const;
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : "";
@@ -622,6 +641,10 @@ function normalizeCollectionItems<K extends CollectionId>(collection: K, items: 
   return items.map((item) => normalizeCollectionItem(collection, item));
 }
 
+function getCollectionFallback<K extends CollectionId>(collection: K) {
+  return (COLLECTION_FALLBACKS as Partial<Record<CollectionId, readonly unknown[]>>)[collection] ?? [];
+}
+
 function getFallbackBaseUrl() {
   const value = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || process.env.VERCEL_URL;
 
@@ -679,11 +702,15 @@ export async function getData<K extends CollectionId>(collection: K): Promise<Co
     return normalizeCollectionItems(collection, payload.data);
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unable to resolve the application base URL")) {
-      return normalizeCollectionItems(collection, await listContentDocuments(collection));
+      try {
+        return normalizeCollectionItems(collection, await listContentDocuments(collection));
+      } catch {
+        return normalizeCollectionItems(collection, [...getCollectionFallback(collection)]);
+      }
     }
 
     console.error(`Failed to fetch ${collection} content`, error);
-    return [];
+    return normalizeCollectionItems(collection, [...getCollectionFallback(collection)]);
   }
 }
 
@@ -699,12 +726,47 @@ export async function getItem<K extends CollectionId>(collection: K, id: string)
     return item ? normalizeCollectionItem(collection, item) : null;
   } catch (error) {
     if (error instanceof Error && error.message.includes("Unable to resolve the application base URL")) {
-      const item = await getContentDocumentById(collection, id);
-      return item ? normalizeCollectionItem(collection, item) : null;
+      try {
+        const item = await getContentDocumentById(collection, id);
+        if (item) {
+          return normalizeCollectionItem(collection, item);
+        }
+      } catch {
+        const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
+          return (
+            item &&
+            typeof item === "object" &&
+            "_id" in item &&
+            String((item as { _id?: unknown })._id) === id
+          );
+        });
+
+        return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
+      }
+
+      const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
+        return (
+          item &&
+          typeof item === "object" &&
+          "_id" in item &&
+          String((item as { _id?: unknown })._id) === id
+        );
+      });
+
+      return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
     }
 
     console.error(`Failed to fetch ${collection} item`, error);
-    return null;
+    const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
+      return (
+        item &&
+        typeof item === "object" &&
+        "_id" in item &&
+        String((item as { _id?: unknown })._id) === id
+      );
+    });
+
+    return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
   }
 }
 

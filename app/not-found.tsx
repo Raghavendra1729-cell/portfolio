@@ -5,7 +5,7 @@ import { MagneticButton } from "@/components/ui/MagneticButton";
 export default function NotFound() {
   return (
     <div className="px-4 pb-24 pt-12 sm:px-6 lg:px-10">
-      <div className="mx-auto max-w-4xl border-y border-white/6 py-16 sm:py-20">
+      <div className="mx-auto max-w-4xl premium-surface premium-outline surface-cut p-8 sm:p-10">
         <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-slate-500">
           404 / Route unavailable
         </p>
@@ -19,7 +19,7 @@ export default function NotFound() {
         <div className="mt-8 flex flex-wrap gap-3">
           <MagneticButton
             asChild
-            className="border-white/10 bg-white px-6 py-3.5 text-slate-950"
+            className="surface-cut border-white/10 bg-white px-6 py-3.5 text-slate-950"
           >
             <Link href="/">
               <ArrowLeft className="h-4 w-4" />

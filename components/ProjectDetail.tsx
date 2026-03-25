@@ -38,7 +38,7 @@ function getDescriptionBlocks(description: string) {
 function normalizeLinks(project: ProjectRecord) {
   const seen = new Set<string>();
   const links: ContentLink[] = [
-    project.link ? { name: "Live Demo", url: project.link } : null,
+    project.link ? { name: "Live demo", url: project.link } : null,
     project.repo ? { name: "Repository", url: project.repo } : null,
     ...project.links,
   ].filter((link): link is ContentLink => Boolean(link?.url));
@@ -98,9 +98,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
     "This project case study will be expanded with implementation details shortly.";
   const showcaseImage = project.images[0];
   const galleryImages = project.images.slice(1);
-  const showProblemSection = Boolean(
-    structured.problem && structured.problem !== leadSummary
-  );
+  const showProblemSection = Boolean(structured.problem && structured.problem !== leadSummary);
   const hasNarrative =
     showProblemSection ||
     Boolean(structured.approach) ||
@@ -122,15 +120,19 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
         Back to projects
       </Link>
 
-      <section className="grid gap-10 border-b border-white/6 pb-10 lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <section className="grid gap-8 border-b border-white/8 pb-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div>
-          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-500">
+          <div className="section-badge">
             <span>Case study</span>
-            <span className="h-px w-10 bg-white/10" />
-            <span>{projectWindow}</span>
           </div>
 
-          <h1 className="mt-6 max-w-4xl text-4xl font-semibold tracking-[-0.08em] text-white sm:text-5xl lg:text-[4.6rem] lg:leading-[0.95]">
+          <div className="mt-6 flex flex-wrap items-center gap-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-500">
+            <span>{projectWindow}</span>
+            <span className="h-px w-8 bg-white/10" />
+            <span>{project.featured ? "Flagship" : "Archive"}</span>
+          </div>
+
+          <h1 className="mt-6 max-w-5xl text-balance text-4xl font-semibold tracking-[-0.08em] text-white sm:text-5xl lg:text-[4.8rem] lg:leading-[0.92]">
             {project.title}
           </h1>
 
@@ -148,8 +150,8 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
                   rel="noreferrer"
                   className={
                     index === 0
-                      ? "inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white px-5 py-3 text-sm font-medium text-slate-950"
-                      : "inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white"
+                      ? "surface-cut inline-flex items-center gap-2 border border-white/10 bg-white px-5 py-3 text-sm font-medium text-slate-950"
+                      : "surface-cut inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-white"
                   }
                 >
                   {link.name}
@@ -160,33 +162,23 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
         </div>
 
-        <div className="divide-y divide-white/6 border-y border-white/6">
-          <div className="py-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
+        <div className="space-y-3">
+          <div className="metric-panel surface-cut rounded-[1.25rem] p-4">
+            <p className="font-mono text-[0.64rem] uppercase tracking-[0.28em] text-slate-500">
               Timeline
             </p>
             <p className="mt-3 text-sm text-slate-200">{projectWindow}</p>
           </div>
-          <div className="py-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
-              Status
-            </p>
-            <p className="mt-3 text-sm text-slate-200">
-              {project.featured ? "Featured in portfolio" : "Archived case study"}
-            </p>
-          </div>
-          <div className="py-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
+          <div className="metric-panel surface-cut rounded-[1.25rem] p-4">
+            <p className="font-mono text-[0.64rem] uppercase tracking-[0.28em] text-slate-500">
               Stack
             </p>
             <p className="mt-3 text-sm text-slate-200">
-              {project.techStack.length > 0
-                ? `${project.techStack.length} technologies`
-                : "Stack not specified"}
+              {project.techStack.length > 0 ? `${project.techStack.length} tools` : "Stack not specified"}
             </p>
           </div>
-          <div className="py-4">
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
+          <div className="metric-panel surface-cut rounded-[1.25rem] p-4">
+            <p className="font-mono text-[0.64rem] uppercase tracking-[0.28em] text-slate-500">
               External links
             </p>
             <p className="mt-3 text-sm text-slate-200">
@@ -198,7 +190,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
 
       {showcaseImage ? (
         <section className="space-y-4">
-          <div className="overflow-hidden rounded-[2rem] border border-white/8 bg-black/35">
+          <div className="premium-surface premium-outline surface-cut overflow-hidden">
             <Image
               src={showcaseImage}
               alt={`${project.title} screenshot 1`}
@@ -214,7 +206,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
               {galleryImages.map((image, index) => (
                 <div
                   key={`${image}-${index}`}
-                  className="overflow-hidden rounded-[1.6rem] border border-white/8 bg-black/35"
+                  className="premium-surface premium-outline surface-cut overflow-hidden"
                 >
                   <Image
                     src={image}
@@ -232,9 +224,9 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
       ) : null}
 
       <section className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="space-y-10">
+        <div className="space-y-6">
           {showProblemSection ? (
-            <section className="border-t border-white/6 pt-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Problem
               </p>
@@ -245,7 +237,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
 
           {structured.approach ? (
-            <section className="border-t border-white/6 pt-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Approach
               </p>
@@ -256,7 +248,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
 
           {structured.outcome ? (
-            <section className="border-t border-white/6 pt-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Outcome
               </p>
@@ -267,11 +259,11 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
 
           {structured.extra.length > 0 ? (
-            <section className="border-t border-white/6 pt-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Additional context
               </p>
-              <div className="mt-4 space-y-4 max-w-3xl text-base leading-8 text-slate-300">
+              <div className="mt-4 max-w-3xl space-y-4 text-base leading-8 text-slate-300">
                 {structured.extra.map((block) => (
                   <p key={block}>{block}</p>
                 ))}
@@ -280,7 +272,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
 
           {!hasNarrative ? (
-            <section className="border-t border-white/6 pt-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Overview
               </p>
@@ -291,8 +283,8 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
           ) : null}
         </div>
 
-        <aside className="space-y-8">
-          <section className="premium-surface premium-outline rounded-[1.8rem] p-6">
+        <aside className="space-y-6">
+          <section className="premium-surface premium-outline surface-cut p-6">
             <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
               Tech stack
             </p>
@@ -301,19 +293,19 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
                 project.techStack.map((tech) => (
                   <span
                     key={tech}
-                    className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1.5 text-sm text-slate-200/85"
+                    className="surface-cut border border-white/8 bg-white/[0.04] px-3 py-1.5 text-sm text-slate-200/85"
                   >
                     {tech}
                   </span>
                 ))
               ) : (
-                  <p className="text-sm text-slate-400">Tech stack not available.</p>
+                <p className="text-sm text-slate-400">Tech stack not available.</p>
               )}
             </div>
           </section>
 
           {projectLinks.length > 0 ? (
-            <section className="premium-surface premium-outline rounded-[1.8rem] p-6">
+            <section className="premium-surface premium-outline surface-cut p-6">
               <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-slate-500">
                 Links
               </p>
@@ -327,7 +319,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
                     className="group flex items-center justify-between py-4 text-sm text-slate-300"
                   >
                     <span>{link.name}</span>
-                    <ArrowUpRight className="h-4 w-4 text-slate-500" />
+                    <ArrowUpRight className="h-4 w-4 text-slate-500 transition group-hover:text-white" />
                   </a>
                 ))}
               </div>

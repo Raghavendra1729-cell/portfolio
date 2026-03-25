@@ -8,11 +8,12 @@ type RevealVariant = "fade-up" | "fade-left" | "fade-right" | "scale";
 
 interface RevealProps {
   children: ReactNode;
-  className?: string;
+  id?: string;
   variant?: RevealVariant;
   delay?: number;
   stagger?: boolean;
   staggerDelay?: number;
+  className?: string;
 }
 
 const distanceMap: Record<RevealVariant, { x?: number; y?: number; scale?: number }> = {
@@ -75,6 +76,7 @@ export function RevealSection({
   delay = 0,
   stagger = false,
   staggerDelay = 0.12,
+  ...props
 }: RevealProps) {
   const reducedMotion = useReducedMotion() ?? false;
   const itemVariants = createItemVariants(variant, reducedMotion, delay);
@@ -87,6 +89,7 @@ export function RevealSection({
         viewport={{ once: true, amount: 0.2, margin: "0px 0px -10% 0px" }}
         variants={createContainerVariants(staggerDelay, delay, reducedMotion)}
         className={className}
+        {...props}
       >
         {children}
       </motion.div>
@@ -100,6 +103,7 @@ export function RevealSection({
       viewport={{ once: true, amount: 0.24, margin: "0px 0px -10% 0px" }}
       variants={itemVariants}
       className={className}
+      {...props}
     >
       {children}
     </motion.div>

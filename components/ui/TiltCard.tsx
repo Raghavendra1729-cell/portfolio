@@ -44,8 +44,8 @@ export default function TiltCard({
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       style={reducedMotion ? undefined : { rotateX, rotateY, transformPerspective: 1200 }}
-      whileHover={reducedMotion ? undefined : { y: -4, scale: 1.006 }}
-      transition={{ type: "spring", stiffness: 160, damping: 22, mass: 0.7 }}
+      whileHover={reducedMotion ? undefined : { y: -5, scale: 1.004 }}
+      transition={{ type: "spring", stiffness: 170, damping: 24, mass: 0.72 }}
       className={cn("will-change-transform", className)}
     >
       {children}

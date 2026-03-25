@@ -29,6 +29,7 @@ export const metadata: Metadata = {
     template: `%s | ${siteConfig.name}`,
   },
   description: siteConfig.description,
+  keywords: siteConfig.keywords,
   openGraph: {
     title: `${siteConfig.name} | ${siteConfig.role}`,
     description: siteConfig.description,
@@ -60,9 +61,9 @@ export default async function RootLayout({
         </a>
         <div className="site-background pointer-events-none fixed inset-0 -z-20" />
         <div className="site-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
-        <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_34%),radial-gradient(circle_at_16%_12%,rgba(255,255,255,0.04),transparent_18%)]" />
-        <div className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_78%_82%,rgba(255,255,255,0.05),transparent_26%),radial-gradient(circle_at_24%_100%,rgba(255,255,255,0.03),transparent_32%)]" />
-        <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(2,4,8,0.02),rgba(2,4,8,0.22)_24%,rgba(2,4,8,0.9)_100%)]" />
+        <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_34%),radial-gradient(circle_at_18%_12%,rgba(142,236,255,0.04),transparent_18%)]" />
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 -z-10 h-[28rem] bg-[radial-gradient(circle_at_78%_82%,rgba(255,255,255,0.05),transparent_26%),radial-gradient(circle_at_24%_100%,rgba(142,236,255,0.03),transparent_32%)]" />
+        <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(2,4,8,0.02),rgba(2,4,8,0.22)_24%,rgba(2,4,8,0.92)_100%)]" />
         <CursorSpotlight />
 
         <Navbar siteSettings={siteSettings} />

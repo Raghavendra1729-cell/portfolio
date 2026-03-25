@@ -36,7 +36,7 @@ export default function SocialLinks({
               target={link.href.startsWith("http") ? "_blank" : undefined}
               rel={link.href.startsWith("http") ? "noreferrer" : undefined}
               aria-label={link.label}
-              className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/8 bg-white/[0.02] text-slate-300 transition hover:border-white/14 hover:bg-white/[0.04] hover:text-white"
+              className="surface-cut group inline-flex h-11 w-11 items-center justify-center border border-white/10 bg-white/[0.03] text-slate-300 hover:border-[color:var(--signal)]/40 hover:bg-white/[0.06] hover:text-white"
             >
               <Icon className="h-4 w-4" />
             </a>
@@ -64,7 +64,7 @@ export default function SocialLinks({
             className={cn(
               "group inline-flex items-center transition",
               variant === "pill"
-                ? "gap-2 rounded-2xl border border-white/8 bg-white/[0.02] px-4 py-2.5 text-sm text-slate-300 hover:border-white/14 hover:bg-white/[0.04] hover:text-white"
+                ? "surface-cut gap-2 border border-white/10 bg-white/[0.03] px-4 py-2.5 text-sm text-slate-300 hover:border-[color:var(--signal)]/40 hover:bg-white/[0.06] hover:text-white"
                 : "gap-2 text-sm text-slate-400 hover:text-white",
             )}
           >
@@ -78,7 +78,7 @@ export default function SocialLinks({
             </span>
             {showValue && link.value ? (
               <>
-                <span className="h-1 w-1 rounded-full bg-white/12" />
+                <span className="h-1 w-1 rounded-full bg-white/14" />
                 <span className="text-slate-500 group-hover:text-slate-300">{link.value}</span>
               </>
             ) : null}

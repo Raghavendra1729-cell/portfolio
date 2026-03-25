@@ -24,7 +24,7 @@ export function MagneticButton({
   const reducedMotion = useReducedMotion();
   const [offset, setOffset] = React.useState({ x: 0, y: 0 });
   const baseClassName =
-    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl border px-5 py-3 text-sm font-medium shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-strong)]/55";
+    "group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-[1rem] border px-5 py-3 text-sm font-medium shadow-[0_18px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--accent-strong)]/55";
 
   const handlePointerMove = (event: React.MouseEvent<HTMLDivElement>) => {
     if (reducedMotion) {
@@ -69,7 +69,8 @@ export function MagneticButton({
             className: cn(baseClassName, className, childProps.className),
             children: (
               <>
-                <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_56%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
                 <span className="relative z-10 inline-flex items-center gap-2">
                   {childProps.children}
                 </span>
@@ -80,7 +81,8 @@ export function MagneticButton({
 
         return (
           <button className={cn(baseClassName, className)} {...props}>
-            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.14),transparent_55%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_56%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent" />
             <span className="relative z-10 inline-flex items-center gap-2">{children}</span>
           </button>
         );

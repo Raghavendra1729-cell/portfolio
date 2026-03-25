@@ -2,13 +2,13 @@ export default function Loading() {
   return (
     <div className="px-4 pb-24 pt-12 sm:px-6 lg:px-10">
       <div className="mx-auto max-w-7xl space-y-10">
-        <div className="animate-pulse border-b border-white/6 pb-10">
+        <div className="animate-pulse border-b border-white/8 pb-10">
           <div className="h-3 w-40 rounded-full bg-white/8" />
           <div className="mt-6 h-14 w-full max-w-4xl rounded-[1.6rem] bg-white/8" />
           <div className="mt-4 h-5 w-full max-w-2xl rounded-full bg-white/6" />
           <div className="mt-10 grid gap-3 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div key={index} className="h-24 rounded-[1.5rem] border border-white/6 bg-white/[0.03]" />
+              <div key={index} className="surface-cut h-24 border border-white/6 bg-white/[0.03]" />
             ))}
           </div>
         </div>
@@ -17,7 +17,7 @@ export default function Loading() {
           {Array.from({ length: 3 }).map((_, index) => (
             <div
               key={index}
-              className="premium-surface premium-outline animate-pulse overflow-hidden rounded-[2rem]"
+              className="premium-surface premium-outline surface-cut animate-pulse overflow-hidden"
             >
               <div className="grid gap-0 lg:grid-cols-[minmax(0,1.05fr)_minmax(18rem,0.95fr)]">
                 <div className="order-2 p-6 sm:p-7 lg:order-1 lg:p-8">
@@ -49,7 +49,7 @@ export default function Loading() {
             ))}
           </div>
 
-          <div className="premium-surface premium-outline animate-pulse rounded-[1.8rem] p-6">
+          <div className="premium-surface premium-outline surface-cut animate-pulse p-6">
             <div className="h-3 w-24 rounded-full bg-white/8" />
             <div className="mt-5 flex flex-wrap gap-2">
               {Array.from({ length: 8 }).map((_, index) => (

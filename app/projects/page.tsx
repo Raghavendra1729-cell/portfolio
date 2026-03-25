@@ -5,14 +5,9 @@ import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, getSiteSettings } from "@/lib/data";
 import { createPageMetadata } from "@/lib/metadata";
+import { pageMetadata } from "@/lib/site-config";
 
-
-export const metadata: Metadata = createPageMetadata({
-  title: "Projects",
-  description:
-    "Selected projects with context, stack choices, and outcomes.",
-  path: "/projects",
-});
+export const metadata: Metadata = createPageMetadata(pageMetadata.projects);
 
 export default async function ProjectsPage() {
   const [projects, siteSettings] = await Promise.all([getData("project"), getSiteSettings()]);

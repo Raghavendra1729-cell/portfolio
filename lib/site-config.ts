@@ -1,10 +1,16 @@
-import { defaultSiteSettings, publicNavItems } from "@/lib/site-content";
+import { defaultProfileImage, navigationItems, pageMetadata, siteMetadata } from "@/content/structure";
+import { defaultSiteSettings } from "@/lib/site-content";
 
 export const siteConfig = {
-  name: defaultSiteSettings.name,
-  role: defaultSiteSettings.role,
-  description:
-    "Portfolio of Raghavendra, a software engineer focused on adaptable problem solving, strong execution, and product-minded engineering.",
+  name: siteMetadata.name || defaultSiteSettings.name,
+  role: siteMetadata.role || defaultSiteSettings.role,
+  description: siteMetadata.description,
+  keywords: siteMetadata.keywords,
+  defaultProfileImage,
 };
 
-export { defaultSiteSettings, publicNavItems };
+export const publicNavItems = navigationItems
+  .filter((item) => item.enabled)
+  .map(({ label, href }) => ({ label, href }));
+
+export { pageMetadata };
