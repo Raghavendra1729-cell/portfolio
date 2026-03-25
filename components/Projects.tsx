@@ -49,17 +49,17 @@ export default function Projects({ data }: { data: ProjectRecord[] }) {
         return (
           <motion.article
             key={project._id}
-            initial={reducedMotion ? undefined : { opacity: 0, y: 24 }}
+            initial={reducedMotion ? undefined : { opacity: 0, y: 20 }}
             whileInView={reducedMotion ? undefined : { opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.42, delay: index * 0.05 }}
+            transition={{ duration: 0.36, delay: index * 0.04 }}
             className="command-surface command-outline overflow-hidden rounded-[2rem]"
           >
             <div className="relative aspect-[16/9] border-b border-white/8 bg-slate-950/55">
               {project.images[0] ? (
                 <Image
                   src={project.images[0]}
-                  alt={project.title}
+                  alt={`${project.title} preview`}
                   fill
                   unoptimized
                   className="object-cover"
@@ -83,10 +83,15 @@ export default function Projects({ data }: { data: ProjectRecord[] }) {
                     <p className="mt-2 text-sm text-slate-400">{projectWindow}</p>
                   ) : null}
                 </div>
+                {project.featured ? (
+                  <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs text-cyan-100">
+                    Featured
+                  </span>
+                ) : null}
               </div>
 
               <p className="mt-4 text-sm leading-7 text-slate-300">
-                {project.description || "A project summary will be added here."}
+                {project.description || "Project details will be added soon."}
               </p>
 
               {project.techStack.length > 0 ? (
@@ -107,7 +112,7 @@ export default function Projects({ data }: { data: ProjectRecord[] }) {
                   href={`/projects/${project._id}`}
                   className="inline-flex items-center gap-2 rounded-full border border-cyan-300/16 bg-cyan-300/10 px-4 py-2.5 text-sm font-medium text-cyan-50"
                 >
-                  View project
+                  Case study
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
 

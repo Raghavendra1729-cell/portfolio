@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { Github, Linkedin, Mail, MessageSquareMore } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { siteConfig } from "@/lib/site-config";
+import { createPageMetadata } from "@/lib/metadata";
 
 const contactMethods = [
   {
@@ -25,6 +27,14 @@ const contactMethods = [
     icon: Github,
   },
 ] as const;
+
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Contact",
+  description:
+    "Direct contact methods for opportunities and collaboration.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (

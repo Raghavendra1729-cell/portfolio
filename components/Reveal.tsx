@@ -36,24 +36,19 @@ function createItemVariants(
           x: offset.x ?? 0,
           y: offset.y ?? 0,
           scale: offset.scale ?? 1,
-          filter: "blur(10px)",
         },
     visible: {
       opacity: 1,
       x: 0,
       y: 0,
       scale: 1,
-      filter: "blur(0px)",
       transition: reducedMotion
         ? { duration: 0.2, delay }
         : {
             delay,
             type: "spring",
-            stiffness: 118,
-            damping: 20,
-            mass: 0.8,
-            opacity: { duration: 0.34, ease: "easeOut" },
-            filter: { duration: 0.3, ease: "easeOut" },
+            duration: 0.28,
+            ease: "easeOut",
           },
     },
   };
@@ -89,7 +84,7 @@ export function RevealSection({
       <motion.div
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: true, amount: 0.18, margin: "0px 0px -12% 0px" }}
+        viewport={{ once: true, amount: 0.2, margin: "0px 0px -10% 0px" }}
         variants={createContainerVariants(staggerDelay, delay, reducedMotion)}
         className={className}
       >

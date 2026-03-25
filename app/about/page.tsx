@@ -1,7 +1,17 @@
+import type { Metadata } from "next";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, type EducationRecord } from "@/lib/data";
+import { createPageMetadata } from "@/lib/metadata";
+
+
+export const metadata: Metadata = createPageMetadata({
+  title: "About",
+  description:
+    "Background, education summary, and engineering approach.",
+  path: "/about",
+});
 
 export default async function AboutPage() {
   const education = (await getData("education")) as EducationRecord[];

@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import { MapPin } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, type ExperienceRecord } from "@/lib/data";
+import { createPageMetadata } from "@/lib/metadata";
+
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Experience",
+  description:
+    "Work history, responsibilities, and technical impact.",
+  path: "/experience",
+});
 
 export default async function ExperiencePage() {
   const experience = (await getData("experience")) as ExperienceRecord[];
@@ -42,7 +52,7 @@ export default async function ExperiencePage() {
                 </div>
 
                 {item.description.length > 0 ? (
-                  <ul className="mt-5 space-y-2 text-sm leading-7 text-slate-300">
+                  <ul className="mt-5 list-disc space-y-2 pl-5 text-sm leading-7 text-slate-300 marker:text-slate-500">
                     {item.description.map((point) => (
                       <li key={point}>{point}</li>
                     ))}

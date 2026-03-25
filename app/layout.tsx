@@ -17,13 +17,23 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "Raghavendra | Software Engineer",
     template: "%s | Raghavendra",
   },
   description:
     "Portfolio of Raghavendra, a software engineer and student focused on adaptable problem solving, strong execution, and clear product-minded engineering.",
+  openGraph: {
+    title: "Raghavendra | Software Engineer",
+    description:
+      "Portfolio of Raghavendra, a software engineer and student focused on adaptable problem solving, strong execution, and clear product-minded engineering.",
+    type: "website",
+    url: siteUrl,
+  },
 };
 
 export default function RootLayout({
@@ -39,6 +49,12 @@ export default function RootLayout({
       <body
         className="relative min-h-screen overflow-x-hidden bg-slate-950 font-sans text-white antialiased"
       >
+        <a
+          href="#main-content"
+          className="sr-only z-[70] rounded-full border border-cyan-300/40 bg-slate-900 px-4 py-2 text-sm text-white focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
         <div className="site-background pointer-events-none fixed inset-0 -z-20" />
         <div className="site-grid pointer-events-none fixed inset-0 -z-10 opacity-60" />
         <div className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.16),transparent_36%),radial-gradient(circle_at_18%_12%,rgba(217,70,239,0.14),transparent_20%)]" />
@@ -46,7 +62,9 @@ export default function RootLayout({
         <div className="pointer-events-none fixed inset-0 -z-10 bg-[linear-gradient(180deg,rgba(2,6,23,0.08),rgba(2,6,23,0.38)_24%,rgba(2,6,23,0.88)_100%)]" />
 
         <Navbar />
-        <main className="min-h-screen pt-24">{children}</main>
+        <main id="main-content" className="min-h-screen pt-24">
+          {children}
+        </main>
         <Footer />
         <Toaster theme="dark" position="bottom-right" richColors closeButton />
       </body>

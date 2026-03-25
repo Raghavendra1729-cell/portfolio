@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, type SkillRecord } from "@/lib/data";
 import { getItemProficiency } from "@/lib/skill-utils";
+import { createPageMetadata } from "@/lib/metadata";
+
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Skills",
+  description:
+    "Skill categories with proficiency and focus signals.",
+  path: "/skills",
+});
 
 export default async function SkillsPage() {
   const skills = (await getData("skill")) as SkillRecord[];
