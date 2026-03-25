@@ -77,7 +77,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
+          <nav aria-label="Primary" className="hidden items-center gap-1 lg:flex">
             {publicNavItems.map((item) => {
               const isActive = isActivePath(pathname, item.href);
 
@@ -90,6 +90,7 @@ export default function Navbar() {
                     "relative rounded-full px-4 py-2.5 text-sm font-medium text-slate-300 transition-all duration-200",
                     isActive ? "text-white" : "hover:text-white"
                   )}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   {isActive ? (
                     <span className="absolute inset-0 rounded-full border border-cyan-300/16 bg-cyan-300/10" />
@@ -127,7 +128,7 @@ export default function Navbar() {
               transition={{ duration: 0.22, ease: "easeOut" }}
               className="mx-auto mt-3 max-w-7xl px-4 sm:px-6 lg:hidden"
             >
-              <div className="command-surface command-outline overflow-hidden rounded-[1.8rem] border border-white/12 px-4 py-4">
+              <div className="command-surface command-outline overflow-hidden rounded-[1.8rem] border border-white/12 px-4 py-4" role="dialog" aria-label="Mobile navigation">
                 <div className="grid gap-2">
                   {publicNavItems.map((item, index) => {
                     const isActive = isActivePath(pathname, item.href);

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { RevealSection } from "@/components/Reveal";
@@ -9,10 +10,19 @@ import {
   type CPProfileRecord,
   type HackathonRecord,
 } from "@/lib/data";
+import { createPageMetadata } from "@/lib/metadata";
 
 function getHackathonMeta(hackathon: HackathonRecord) {
   return [hackathon.event, hackathon.organizer, hackathon.date].filter(Boolean).join(" • ");
 }
+
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Achievements",
+  description:
+    "Achievements, coding profiles, and hackathon participation.",
+  path: "/achievements",
+});
 
 export default async function AchievementsPage() {
   const [achievements, hackathons, cpProfiles] = (await Promise.all([

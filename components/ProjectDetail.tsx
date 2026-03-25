@@ -10,6 +10,13 @@ type ProjectDetailProps = {
   project: ProjectRecord;
 };
 
+type StructuredDetails = {
+  problem?: string;
+  approach?: string;
+  outcome?: string;
+  extra: string[];
+};
+
 function normalizeLinks(project: ProjectRecord) {
   const seen = new Set<string>();
   const links: ContentLink[] = [
@@ -28,21 +35,53 @@ function normalizeLinks(project: ProjectRecord) {
   });
 }
 
+function parseProjectDescription(description: string): StructuredDetails {
+  const blocks = description
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const result: StructuredDetails = { extra: [] };
+
+  blocks.forEach((block) => {
+    const lower = block.toLowerCase();
+
+    if (!result.problem && (lower.startsWith("problem:") || lower.startsWith("challenge:"))) {
+      result.problem = block.replace(/^[^:]+:\s*/i, "");
+      return;
+    }
+
+    if (!result.approach && (lower.startsWith("approach:") || lower.startsWith("solution:"))) {
+      result.approach = block.replace(/^[^:]+:\s*/i, "");
+      return;
+    }
+
+    if (!result.outcome && (lower.startsWith("outcome:") || lower.startsWith("impact:"))) {
+      result.outcome = block.replace(/^[^:]+:\s*/i, "");
+      return;
+    }
+
+    result.extra.push(block);
+  });
+
+  if (!result.problem && result.extra.length > 0) {
+    result.problem = result.extra[0];
+    result.extra = result.extra.slice(1);
+  }
+
+  return result;
+}
+
 export default function ProjectDetailClient({ project }: ProjectDetailProps) {
   const reducedMotion = useReducedMotion();
   const projectLinks = normalizeLinks(project);
-  const descriptionBlocks = project.description
-    ? project.description
-        .split(/\n+/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-    : [];
+  const structured = parseProjectDescription(project.description || "");
 
   return (
     <motion.div
       initial={reducedMotion ? undefined : { opacity: 0, y: 20 }}
       animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-      transition={{ duration: 0.42, ease: "easeOut" }}
+      transition={{ duration: 0.32, ease: "easeOut" }}
       className="space-y-8"
     >
       <Link
@@ -89,7 +128,10 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
       {project.images.length > 0 ? (
         <section className="grid gap-4 md:grid-cols-2">
           {project.images.map((image, index) => (
-            <div key={`${image}-${index}`} className="overflow-hidden rounded-[1.8rem] border border-white/8 bg-slate-950/55">
+            <div
+              key={`${image}-${index}`}
+              className="overflow-hidden rounded-[1.8rem] border border-white/8 bg-slate-950/55"
+            >
               <Image
                 src={image}
                 alt={`${project.title} screenshot ${index + 1}`}
@@ -105,13 +147,38 @@ export default function ProjectDetailClient({ project }: ProjectDetailProps) {
 
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="command-surface command-outline rounded-[2rem] p-6">
-          <h2 className="text-2xl font-semibold text-white">Details</h2>
-          <div className="mt-5 space-y-4 text-base leading-8 text-slate-300">
-            {(descriptionBlocks.length > 0 ? descriptionBlocks : [project.description || "Details coming soon."]).map(
-              (block) => (
-                <p key={block}>{block}</p>
-              )
-            )}
+          <h2 className="text-2xl font-semibold text-white">Project breakdown</h2>
+          <div className="mt-5 space-y-5 text-base leading-8 text-slate-300">
+            {structured.problem ? (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                  Problem
+                </h3>
+                <p className="mt-2">{structured.problem}</p>
+              </div>
+            ) : null}
+
+            {structured.approach ? (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                  Approach
+                </h3>
+                <p className="mt-2">{structured.approach}</p>
+              </div>
+            ) : null}
+
+            {structured.outcome ? (
+              <div>
+                <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">
+                  Outcome
+                </h3>
+                <p className="mt-2">{structured.outcome}</p>
+              </div>
+            ) : null}
+
+            {structured.extra.map((block) => (
+              <p key={block}>{block}</p>
+            ))}
           </div>
         </div>
 

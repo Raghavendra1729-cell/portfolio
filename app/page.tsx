@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
@@ -5,22 +6,30 @@ import profilePhoto from "@/resources/linkedin profile.png";
 import PageShell from "@/components/layout/PageShell";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import { siteConfig } from "@/lib/site-config";
+import { createPageMetadata } from "@/lib/metadata";
+
+export const metadata: Metadata = createPageMetadata({
+  title: "Home",
+  description:
+    "Software engineer portfolio focused on practical product execution, clear communication, and adaptable technical depth.",
+  path: "/",
+});
 
 const highlights = [
   {
-    title: "How I work",
+    title: "Execution",
     description:
-      "I like taking unclear problems, structuring them properly, and turning them into working software.",
+      "I scope ambiguous problems, prioritize quickly, and turn them into stable shipped software.",
   },
   {
-    title: "What I value",
+    title: "Engineering style",
     description:
-      "I care about clarity, adaptability, and steady execution more than being tied to one specific stack.",
+      "Clear architecture, reliable delivery, and communication that keeps teams aligned.",
   },
   {
-    title: "What to explore here",
+    title: "Focus areas",
     description:
-      "Use the pages above to see my projects, experience, skills, achievements, and contact details.",
+      "Full-stack product development, problem solving, and fast ramp-up across unfamiliar stacks.",
   },
 ] as const;
 
@@ -30,8 +39,8 @@ const quickFacts = [
     value: "Software Engineer / Student",
   },
   {
-    label: "Approach",
-    value: "Adapt fast, solve clearly, ship practical solutions",
+    label: "Location",
+    value: siteConfig.location,
   },
   {
     label: "Availability",
@@ -41,23 +50,23 @@ const quickFacts = [
 
 const exploreLinks = [
   {
-    title: "About",
-    description: "A short introduction and education summary.",
-    href: "/about",
-  },
-  {
     title: "Projects",
-    description: "Selected work and what I have built.",
+    description: "See selected work with stack, links, and implementation context.",
     href: "/projects",
   },
   {
+    title: "Experience",
+    description: "Review roles, impact, and technical scope.",
+    href: "/experience",
+  },
+  {
     title: "Skills",
-    description: "Technologies, tools, and current proficiency levels.",
+    description: "Scan strengths and current depth by category.",
     href: "/skills",
   },
   {
     title: "Contact",
-    description: "Simple ways to reach me.",
+    description: "Reach out for internships, collaborations, or full-time roles.",
     href: "/contact",
   },
 ] as const;
@@ -65,48 +74,41 @@ const exploreLinks = [
 export default function Home() {
   return (
     <PageShell className="pt-6">
-      <section className="mx-auto max-w-6xl space-y-8">
-        <div className="grid gap-8 lg:grid-cols-[22rem_1fr] lg:items-center">
+      <section className="mx-auto max-w-6xl space-y-10">
+        <div className="grid gap-8 lg:grid-cols-[20rem_1fr] lg:items-center">
           <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5">
             <Image
               src={profilePhoto}
               alt={`${siteConfig.name} portrait`}
               priority
-              sizes="(max-width: 1024px) 100vw, 22rem"
+              sizes="(max-width: 1024px) 100vw, 20rem"
               className="h-full w-full object-cover"
             />
           </div>
 
           <div className="max-w-3xl">
             <p className="font-mono text-[0.72rem] uppercase tracking-[0.3em] text-cyan-200/80">
-              Welcome
+              Software engineer portfolio
             </p>
             <h1 className="mt-4 text-4xl font-semibold tracking-[-0.06em] text-white sm:text-5xl lg:text-6xl">
               Hi, I&apos;m {siteConfig.name}.
             </h1>
-            <p className="mt-5 text-lg leading-8 text-slate-300">
-              I&apos;m a software engineer and student who enjoys solving problems, learning fast,
-              and building software that is clear, practical, and useful.
-            </p>
+            <p className="mt-5 text-lg leading-8 text-slate-300">{siteConfig.headline}</p>
             <p className="mt-4 text-base leading-8 text-slate-400">
-              I&apos;m comfortable working across different technologies, and I focus more on
-              understanding the problem well than on sticking to one tool or framework.
-            </p>
-            <p className="mt-4 text-base leading-8 text-slate-400">
-              This homepage is a brief introduction. If you want to know more about me, use the
-              pages in the navigation bar.
+              This site is designed for fast scanning: strongest projects, practical experience,
+              and clear ways to contact me.
             </p>
 
             <div className="mt-7 flex flex-wrap gap-3">
               <MagneticButton asChild className="border-cyan-300/18 bg-cyan-300 px-5 py-3 text-slate-950">
-                <Link href="/about">
-                  About me
+                <Link href="/projects">
+                  View projects
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </MagneticButton>
               <MagneticButton asChild className="border-white/12 bg-white/6 px-5 py-3 text-white">
                 <Link href="/contact">
-                  Contact
+                  Contact me
                   <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </MagneticButton>
@@ -140,13 +142,16 @@ export default function Home() {
           ))}
         </div>
 
-        <section className="space-y-4">
+        <section aria-labelledby="explore-sections" className="space-y-4">
           <div className="max-w-2xl">
             <p className="font-mono text-[0.72rem] uppercase tracking-[0.3em] text-cyan-200/80">
               Explore
             </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl">
-              Start with the section you need.
+            <h2
+              id="explore-sections"
+              className="mt-3 text-3xl font-semibold tracking-[-0.05em] text-white sm:text-4xl"
+            >
+              Start with the section you care about.
             </h2>
           </div>
 
