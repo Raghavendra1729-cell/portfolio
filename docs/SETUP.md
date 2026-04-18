@@ -29,12 +29,14 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 - `ADMIN_SECRET`: required for admin login (header-based verification).
 - `ADMIN_JWT_SECRET`: optional override for session token signing; defaults to `ADMIN_SECRET` if omitted.
 - `CLOUDINARY_*`: required for `/api/upload` file uploads.
-- `NEXT_PUBLIC_SITE_URL`: used for canonical/metadata URL generation.
+- `NEXT_PUBLIC_SITE_URL`: optional on Vercel because the app can fall back to Vercel system URL variables, but recommended if you want to force a custom canonical domain.
 
 ## Run locally
 ```bash
 npm run dev
 ```
+
+`npm run dev` uses webpack by default. Use `npm run dev:turbo` only when you explicitly want to test Turbopack.
 
 ## Validate production build
 ```bash

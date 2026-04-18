@@ -3,7 +3,31 @@ import type { Metadata } from "next";
 import { getLandingPage, getSiteSettings } from "@/lib/data";
 import type { SitePageKey } from "@/lib/site-content";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+function getSiteUrl() {
+  const explicitUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const productionUrl =
+    process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const deploymentUrl =
+    process.env.NEXT_PUBLIC_VERCEL_URL ||
+    process.env.VERCEL_URL;
+
+  if (explicitUrl) {
+    return explicitUrl;
+  }
+
+  if (productionUrl) {
+    return `https://${productionUrl}`;
+  }
+
+  if (deploymentUrl) {
+    return `https://${deploymentUrl}`;
+  }
+
+  return "http://localhost:3000";
+}
+
+const siteUrl = getSiteUrl();
 
 export function createPageMetadata({
   title,

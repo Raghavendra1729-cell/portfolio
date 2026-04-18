@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { ArrowLeft, Database, ShieldAlert } from "lucide-react";
 import PageShell from "@/components/layout/PageShell";
-import { verifyAdminSessionToken } from "@/lib/auth";
 import { createPageMetadata } from "@/lib/metadata";
 import { runPortfolioSeed } from "@/lib/seed";
 
@@ -17,13 +16,11 @@ export const metadata: Metadata = createPageMetadata({
 
 async function canRunSeedPage() {
   const headerStore = await headers();
-  const cookieStore = await cookies();
   const host = headerStore.get("x-forwarded-host") ?? headerStore.get("host") ?? "";
   const isLocalhost = host.includes("localhost") || host.includes("127.0.0.1");
   const isDevelopment = process.env.NODE_ENV !== "production";
-  const isAdmin = Boolean(verifyAdminSessionToken(cookieStore.get("admin_session")?.value));
 
-  return isDevelopment || isLocalhost || isAdmin;
+  return isDevelopment || isLocalhost;
 }
 
 export default async function SeedPage() {
@@ -40,12 +37,12 @@ export default async function SeedPage() {
             Seeding is only allowed locally or from an authenticated admin session.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
-            This route mutates database content, so it stays unavailable for anonymous public traffic.
+            This route mutates database content on page load, so it is intentionally limited to local development.
           </p>
 
           <div className="mt-8 flex items-center gap-2 text-sm text-slate-400">
             <ShieldAlert className="h-4 w-4" />
-            Sign in via the admin panel or run the app locally to use this route.
+            Use local development for browser-based seeding, or call the protected seed API directly from an authenticated admin session.
           </div>
         </section>
       </PageShell>

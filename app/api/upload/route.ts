@@ -1,7 +1,9 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { NextRequest, NextResponse } from 'next/server';
+import { v2 as cloudinary } from "cloudinary";
+import { NextRequest, NextResponse } from "next/server";
+import { isAuthenticated } from "@/lib/auth";
 
-// Configure Cloudinary
+export const dynamic = "force-dynamic";
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
@@ -9,13 +11,31 @@ cloudinary.config({
 });
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  if (!isAuthenticated(request)) {
+    return NextResponse.json(
+      { error: "Your admin session is missing or has expired. Please sign in again." },
+      { status: 401 }
+    );
+  }
+
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
+    return NextResponse.json(
+      { error: "Cloudinary is not configured on this deployment." },
+      { status: 500 }
+    );
+  }
+
   try {
     const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const file = formData.get("file") as File;
 
     if (!file) {
       return NextResponse.json(
-        { error: 'No file uploaded' },
+        { error: "No file uploaded" },
         { status: 400 }
       );
     }
@@ -25,12 +45,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     return new Promise<NextResponse>((resolve) => {
       cloudinary.uploader.upload_stream(
-        { resource_type: 'auto' },
+        { resource_type: "auto" },
         (error, result) => {
           if (error) {
             resolve(
               NextResponse.json(
-                { error: 'Upload failed', details: error.message },
+                { error: "Upload failed", details: error.message },
                 { status: 500 }
               )
             );
@@ -46,9 +66,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       ).end(buffer);
     });
   } catch (error) {
-    console.error('Error uploading to Cloudinary:', error);
+    console.error("Error uploading to Cloudinary:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
