@@ -1,3 +1,8 @@
+import {
+  LANDING_HOME_SECTION_IDS,
+  SITE_PAGE_KEYS,
+} from "@/lib/site-content";
+
 export const ADMIN_COLLECTIONS = [
   { id: "siteSettings", label: "Site Settings" },
   { id: "landingPage", label: "Landing Page" },
@@ -26,8 +31,8 @@ export type AdminCollectionId = (typeof ADMIN_COLLECTIONS)[number]["id"];
 export type ContentCollectionId = (typeof CONTENT_COLLECTIONS)[number]["id"];
 
 export const REQUIRED_FIELDS: Record<AdminCollectionId, string[]> = {
-  siteSettings: ["name", "role"],
-  landingPage: ["heroTitle", "heroSubtitle"],
+  siteSettings: ["name", "role", "navigationItems"],
+  landingPage: ["heroTitle", "heroSubtitle", "homeSections"],
   project: ["title"],
   experience: ["role", "company"],
   education: ["institution", "degree"],
@@ -67,10 +72,22 @@ type SocialLink = {
   href: string;
 };
 
+type NavigationItem = {
+  label: string;
+  href: string;
+  enabled: boolean;
+};
+
+type SiteMetadataConfig = {
+  description: string;
+  keywords: string[];
+};
+
 type PageIntro = {
   eyebrow: string;
   title: string;
   description: string;
+  path: string;
 };
 
 type HighlightCard = {
@@ -83,6 +100,16 @@ type FeaturedSection = {
   title: string;
   description: string;
   href: string;
+};
+
+type HeroSignal = {
+  label: string;
+  value: string;
+};
+
+type HomeSection = {
+  id: string;
+  enabled: boolean;
 };
 
 function asTrimmedString(value: unknown) {
@@ -247,12 +274,62 @@ function asSocialLinks(value: unknown): SocialLink[] {
     .filter((item): item is SocialLink => Boolean(item));
 }
 
+function asNavigationItems(value: unknown): NavigationItem[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const navigationItem = item as {
+        label?: unknown;
+        href?: unknown;
+        enabled?: unknown;
+      };
+      const href = asTrimmedString(navigationItem.href);
+
+      if (!href) {
+        return null;
+      }
+
+      return {
+        label: asTrimmedString(navigationItem.label) || "Link",
+        href,
+        enabled:
+          !Object.prototype.hasOwnProperty.call(navigationItem, "enabled") ||
+          asBoolean(navigationItem.enabled),
+      };
+    })
+    .filter((item): item is NavigationItem => Boolean(item));
+}
+
+function asSiteMetadata(value: unknown): SiteMetadataConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      description: "",
+      keywords: [],
+    };
+  }
+
+  const metadata = value as Record<string, unknown>;
+
+  return {
+    description: asTrimmedString(metadata.description),
+    keywords: asStringArray(metadata.keywords),
+  };
+}
+
 function asPageIntro(value: unknown): PageIntro {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {
       eyebrow: "",
       title: "",
       description: "",
+      path: "",
     };
   }
 
@@ -262,6 +339,7 @@ function asPageIntro(value: unknown): PageIntro {
     eyebrow: asTrimmedString(intro.eyebrow),
     title: asTrimmedString(intro.title),
     description: asTrimmedString(intro.description),
+    path: asTrimmedString(intro.path),
   };
 }
 
@@ -325,6 +403,59 @@ function asFeaturedSections(value: unknown): FeaturedSection[] {
     .filter((item): item is FeaturedSection => Boolean(item));
 }
 
+function asHeroSignals(value: unknown): HeroSignal[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const signal = item as { label?: unknown; value?: unknown };
+      const valueText = asTrimmedString(signal.value);
+
+      if (!valueText) {
+        return null;
+      }
+
+      return {
+        label: asTrimmedString(signal.label) || "Signal",
+        value: valueText,
+      };
+    })
+    .filter((item): item is HeroSignal => Boolean(item));
+}
+
+function asHomeSections(value: unknown): HomeSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const section = item as { id?: unknown; enabled?: unknown };
+      const id = asTrimmedString(section.id);
+
+      if (!LANDING_HOME_SECTION_IDS.includes(id as (typeof LANDING_HOME_SECTION_IDS)[number])) {
+        return null;
+      }
+
+      return {
+        id,
+        enabled:
+          !Object.prototype.hasOwnProperty.call(section, "enabled") || asBoolean(section.enabled),
+      };
+    })
+    .filter((item): item is HomeSection => Boolean(item));
+}
+
 function asNumberMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, number>;
@@ -368,6 +499,10 @@ function isValidLinkHref(value: string) {
   }
 
   return isValidUrl(value);
+}
+
+function isValidInternalPath(value: string) {
+  return value.startsWith("/") && !/\s/.test(value);
 }
 
 function withProjectLinks(input: Record<string, unknown>) {
@@ -430,14 +565,12 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
     const primaryResumeDownloadHref = asTrimmedString(input.primaryResumeDownloadHref);
     const alternateResumeLinks = asResumeAlternateLinks(input.alternateResumeLinks);
     const socialLinks = asSocialLinks(input.socialLinks);
-    const pageIntro = {
-      about: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.about),
-      projects: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.projects),
-      experience: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.experience),
-      skills: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.skills),
-      achievements: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.achievements),
-      contact: asPageIntro((input.pageIntro as Record<string, unknown> | undefined)?.contact),
-    };
+    const navigationItems = asNavigationItems(input.navigationItems);
+    const siteMetadata = asSiteMetadata(input.siteMetadata);
+    const pageIntroInput = input.pageIntro as Record<string, unknown> | undefined;
+    const pageIntro = Object.fromEntries(
+      SITE_PAGE_KEYS.map((key) => [key, asPageIntro(pageIntroInput?.[key])])
+    ) as Record<(typeof SITE_PAGE_KEYS)[number], PageIntro>;
 
     if (name.length < 2) {
       fieldErrors.name = "Name must be at least 2 characters.";
@@ -520,6 +653,35 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         "Social links must use supported kinds, short labels, and valid /, http://, https://, or mailto: URLs.";
     }
 
+    if (navigationItems.length === 0) {
+      fieldErrors.navigationItems = "Add at least one navigation item.";
+    } else if (navigationItems.length > 10) {
+      fieldErrors.navigationItems = "Add up to 10 navigation items.";
+    } else if (!navigationItems.some((item) => item.enabled)) {
+      fieldErrors.navigationItems = "Enable at least one navigation item.";
+    } else if (
+      new Set(navigationItems.map((item) => item.href)).size !== navigationItems.length ||
+      navigationItems.some((item) => item.label.length > 32 || !isValidInternalPath(item.href))
+    ) {
+      fieldErrors.navigationItems =
+        "Navigation items must use unique internal paths and labels under 33 characters.";
+    }
+
+    if (siteMetadata.description.length < 20) {
+      fieldErrors["siteMetadata.description"] =
+        "Metadata description must be at least 20 characters.";
+    } else if (siteMetadata.description.length > 240) {
+      fieldErrors["siteMetadata.description"] =
+        "Metadata description must be 240 characters or fewer.";
+    }
+
+    if (siteMetadata.keywords.length > 12) {
+      fieldErrors["siteMetadata.keywords"] = "Add up to 12 metadata keywords.";
+    } else if (siteMetadata.keywords.some((item) => item.length > 80)) {
+      fieldErrors["siteMetadata.keywords"] =
+        "Each metadata keyword must be 80 characters or fewer.";
+    }
+
     (Object.entries(pageIntro) as Array<[keyof typeof pageIntro, PageIntro]>).forEach(([key, value]) => {
       if (!value.title) {
         fieldErrors[`pageIntro.${key}.title`] = "Each page intro needs a title.";
@@ -535,6 +697,12 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
 
       if (value.description.length > 240) {
         fieldErrors[`pageIntro.${key}.description`] = "Descriptions must be 240 characters or fewer.";
+      }
+
+      if (!value.path) {
+        fieldErrors[`pageIntro.${key}.path`] = "Each page intro needs a path.";
+      } else if (!isValidInternalPath(value.path)) {
+        fieldErrors[`pageIntro.${key}.path`] = "Paths must start with / and cannot contain spaces.";
       }
     });
 
@@ -557,6 +725,8 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         primaryResumeDownloadHref,
         alternateResumeLinks,
         socialLinks,
+        navigationItems,
+        siteMetadata,
         pageIntro,
       },
     };
@@ -567,6 +737,8 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
     const heroTitle = asTrimmedString(input.heroTitle);
     const heroSubtitle = asTrimmedString(input.heroSubtitle);
     const heroSummary = asTrimmedString(input.heroSummary);
+    const heroIntroLines = asStringArray(input.heroIntroLines);
+    const heroSignals = asHeroSignals(input.heroSignals);
     const primaryCtaLabel = asTrimmedString(input.primaryCtaLabel);
     const primaryCtaHref = asTrimmedString(input.primaryCtaHref);
     const secondaryCtaLabel = asTrimmedString(input.secondaryCtaLabel);
@@ -585,6 +757,7 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
     const exploreTitle = asTrimmedString(input.exploreTitle);
     const exploreDescription = asTrimmedString(input.exploreDescription);
     const featuredSections = asFeaturedSections(input.featuredSections);
+    const homeSections = asHomeSections(input.homeSections);
     const contactEyebrow = asTrimmedString(input.contactEyebrow);
     const contactTitle = asTrimmedString(input.contactTitle);
     const contactDescription = asTrimmedString(input.contactDescription);
@@ -607,6 +780,19 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
 
     if (heroSummary.length > 240) {
       fieldErrors.heroSummary = "Hero summary must be 240 characters or fewer.";
+    }
+
+    if (heroIntroLines.length > 4) {
+      fieldErrors.heroIntroLines = "Add up to 4 hero intro lines.";
+    } else if (heroIntroLines.some((item) => item.length > 90)) {
+      fieldErrors.heroIntroLines = "Each hero intro line must be 90 characters or fewer.";
+    }
+
+    if (heroSignals.length > 4) {
+      fieldErrors.heroSignals = "Add up to 4 hero signal items.";
+    } else if (heroSignals.some((item) => item.label.length > 28 || item.value.length > 80)) {
+      fieldErrors.heroSignals =
+        "Hero signals must use labels under 29 characters and values under 81 characters.";
     }
 
     if (primaryCtaLabel.length > 32) {
@@ -700,6 +886,14 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         "Featured section cards need short copy and valid /, http://, https://, or mailto: links.";
     }
 
+    if (homeSections.length === 0) {
+      fieldErrors.homeSections = "Add at least one home section.";
+    } else if (homeSections.length > 5) {
+      fieldErrors.homeSections = "Add up to 5 home sections.";
+    } else if (new Set(homeSections.map((item) => item.id)).size !== homeSections.length) {
+      fieldErrors.homeSections = "Home sections must use unique section IDs.";
+    }
+
     if (contactEyebrow.length > 40) {
       fieldErrors.contactEyebrow = "Contact eyebrow must be 40 characters or fewer.";
     }
@@ -721,6 +915,8 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         heroTitle,
         heroSubtitle,
         heroSummary,
+        heroIntroLines,
+        heroSignals,
         primaryCtaLabel,
         primaryCtaHref,
         secondaryCtaLabel,
@@ -739,6 +935,7 @@ export function validateContentData(collection: ContentCollectionId, input: Reco
         exploreTitle,
         exploreDescription,
         featuredSections,
+        homeSections,
         contactEyebrow,
         contactTitle,
         contactDescription,

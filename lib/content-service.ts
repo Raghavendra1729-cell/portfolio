@@ -17,12 +17,17 @@ import { decodeSkillMap } from "@/lib/skill-map";
 type SortDirection = 1 | -1;
 type SortConfig = Record<string, SortDirection>;
 
-type QueryableModel = {
-  find: (query: Record<string, unknown>) => {
-    sort: (sort: SortConfig) => {
+type FindQueryResult = {
+  sort: (sort: SortConfig) => {
+    lean: () => Promise<unknown[]>;
+    limit: (limit: number) => {
       lean: () => Promise<unknown[]>;
     };
   };
+};
+
+type QueryableModel = {
+  find: (query: Record<string, unknown>) => FindQueryResult;
   findOne: (query: Record<string, unknown>) => {
     lean: () => Promise<unknown | null>;
   };
@@ -74,25 +79,57 @@ function decodeCollectionDocument(
 }
 
 function getFilter(config: CollectionConfig, includeHidden = false) {
-  if (includeHidden || !config.publicFilter) {
-    return {};
-  }
-
-  return { ...config.publicFilter };
+  return includeHidden || !config.publicFilter ? {} : { ...config.publicFilter };
 }
 
 export async function listContentDocuments(
   collection: ContentCollectionId,
-  options?: { includeHidden?: boolean }
+  options?: {
+    includeHidden?: boolean;
+    filter?: Record<string, unknown>;
+    limit?: number;
+  }
 ) {
   await dbConnect();
 
   const config = COLLECTION_CONFIG[collection];
-  const data = await config.model.find(getFilter(config, options?.includeHidden)).sort(config.sort).lean();
+  const query = config.model
+    .find({
+      ...getFilter(config, options?.includeHidden),
+      ...(options?.filter ?? {}),
+    })
+    .sort(config.sort);
+  const data =
+    typeof options?.limit === "number" ? await query.limit(options.limit).lean() : await query.lean();
 
   return toPlain(data).map((item) =>
     decodeCollectionDocument(collection, item as Record<string, unknown>)
   );
+}
+
+export async function listFeaturedContentDocuments(
+  collection: "project" | "achievement",
+  limit: number,
+  options?: { includeHidden?: boolean }
+) {
+  if (limit <= 0) {
+    return [];
+  }
+
+  const featured = await listContentDocuments(collection, {
+    includeHidden: options?.includeHidden,
+    filter: { featured: true },
+    limit,
+  });
+
+  if (featured.length > 0) {
+    return featured;
+  }
+
+  return listContentDocuments(collection, {
+    includeHidden: options?.includeHidden,
+    limit,
+  });
 }
 
 export async function getContentDocumentById(

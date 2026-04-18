@@ -1,14 +1,14 @@
-import type { Metadata } from "next";
 import { pageSectionVisibility } from "@/content/structure";
 import { RevealSection } from "@/components/Reveal";
 import ResumeActions from "@/components/ResumeActions";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, getSiteSettings, type EducationRecord } from "@/lib/data";
-import { createPageMetadata } from "@/lib/metadata";
-import { pageMetadata } from "@/lib/site-config";
+import { getSitePageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = createPageMetadata(pageMetadata.about);
+export async function generateMetadata() {
+  return getSitePageMetadata("about");
+}
 
 export default async function AboutPage() {
   const [siteSettings, education] = (await Promise.all([

@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, getSiteSettings, type ExperienceRecord } from "@/lib/data";
-import { createPageMetadata } from "@/lib/metadata";
-import { pageMetadata } from "@/lib/site-config";
+import { getSitePageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = createPageMetadata(pageMetadata.experience);
+export async function generateMetadata() {
+  return getSitePageMetadata("experience");
+}
 
 export default async function ExperiencePage() {
   const [experience, siteSettings] = (await Promise.all([

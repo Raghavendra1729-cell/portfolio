@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 import { pageSectionVisibility } from "@/content/structure";
 import { RevealSection } from "@/components/Reveal";
@@ -7,10 +6,11 @@ import SocialLinks from "@/components/SocialLinks";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getSiteSettings } from "@/lib/data";
-import { createPageMetadata } from "@/lib/metadata";
-import { pageMetadata } from "@/lib/site-config";
+import { getSitePageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = createPageMetadata(pageMetadata.contact);
+export async function generateMetadata() {
+  return getSitePageMetadata("contact");
+}
 
 export default async function ContactPage() {
   const siteSettings = await getSiteSettings();

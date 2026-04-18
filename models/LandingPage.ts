@@ -12,6 +12,14 @@ const HighlightCardSchema = new Schema(
   { _id: false }
 );
 
+const HeroSignalSchema = new Schema(
+  {
+    label: { type: String, trim: true, required: true, maxlength: 28 },
+    value: { type: String, trim: true, required: true, maxlength: 80 },
+  },
+  { _id: false }
+);
+
 const FeaturedSectionSchema = new Schema(
   {
     label: { type: String, trim: true, required: true, maxlength: 28 },
@@ -25,6 +33,21 @@ const FeaturedSectionSchema = new Schema(
         validator: isValidHref,
         message: "Featured section links must start with /, http://, https://, or mailto:.",
       },
+    },
+  },
+  { _id: false }
+);
+
+const HomeSectionSchema = new Schema(
+  {
+    id: {
+      type: String,
+      required: true,
+      enum: ["highlights", "projects", "achievements", "explore", "contact"],
+    },
+    enabled: {
+      type: Boolean,
+      default: true,
     },
   },
   { _id: false }
@@ -60,6 +83,29 @@ const LandingPageSchema = new Schema(
       trim: true,
       maxlength: [240, "Hero summary must be 240 characters or fewer."],
       default: "",
+    },
+    heroIntroLines: {
+      type: [String],
+      default: [],
+      validate: [
+        {
+          validator: (value: string[]) => value.length <= 4,
+          message: "Add up to 4 hero intro lines.",
+        },
+        {
+          validator: (value: string[]) =>
+            value.every((item) => item.trim().length > 0 && item.trim().length <= 90),
+          message: "Each hero intro line must be 1-90 characters long.",
+        },
+      ],
+    },
+    heroSignals: {
+      type: [HeroSignalSchema],
+      default: [],
+      validate: {
+        validator: (value: unknown[]) => value.length <= 4,
+        message: "Add up to 4 hero signal items.",
+      },
     },
     primaryCtaLabel: {
       type: String,
@@ -182,6 +228,29 @@ const LandingPageSchema = new Schema(
         validator: (value: unknown[]) => value.length <= 6,
         message: "Add up to 6 featured navigation sections.",
       },
+    },
+    homeSections: {
+      type: [HomeSectionSchema],
+      default: () => [
+        { id: "highlights", enabled: true },
+        { id: "projects", enabled: true },
+        { id: "achievements", enabled: true },
+        { id: "explore", enabled: true },
+        { id: "contact", enabled: true },
+      ],
+      validate: [
+        {
+          validator: (value: unknown[]) => value.length > 0 && value.length <= 5,
+          message: "Add between 1 and 5 home sections.",
+        },
+        {
+          validator: (value: Array<{ id?: string }>) => {
+            const ids = value.map((item) => item?.id).filter(Boolean);
+            return new Set(ids).size === ids.length;
+          },
+          message: "Home sections must use unique section IDs.",
+        },
+      ],
     },
     contactEyebrow: {
       type: String,

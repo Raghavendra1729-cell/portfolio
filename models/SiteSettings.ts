@@ -5,7 +5,11 @@ function isValidExternalUrl(value: string) {
 }
 
 function isValidLink(value: string) {
-  return /^(https?:\/\/|mailto:)/.test(value);
+  return /^(\/|https?:\/\/|mailto:)/.test(value);
+}
+
+function isValidInternalPath(value: string) {
+  return value.startsWith("/") && !/\s/.test(value);
 }
 
 const PageIntroSchema = new Schema(
@@ -13,6 +17,15 @@ const PageIntroSchema = new Schema(
     eyebrow: { type: String, trim: true, maxlength: 40, default: "" },
     title: { type: String, trim: true, maxlength: 90, default: "" },
     description: { type: String, trim: true, maxlength: 240, default: "" },
+    path: {
+      type: String,
+      trim: true,
+      required: true,
+      validate: {
+        validator: isValidInternalPath,
+        message: "Page intro paths must start with / and cannot contain spaces.",
+      },
+    },
   },
   { _id: false }
 );
@@ -50,6 +63,52 @@ const SocialLinkSchema = new Schema(
         validator: isValidLink,
         message: "Social links must use a valid http://, https://, or mailto: URL.",
       },
+    },
+  },
+  { _id: false }
+);
+
+const NavigationItemSchema = new Schema(
+  {
+    label: { type: String, trim: true, required: true, maxlength: 32 },
+    href: {
+      type: String,
+      trim: true,
+      required: true,
+      validate: {
+        validator: isValidInternalPath,
+        message: "Navigation links must start with / and cannot contain spaces.",
+      },
+    },
+    enabled: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  { _id: false }
+);
+
+const SiteMetadataSchema = new Schema(
+  {
+    description: {
+      type: String,
+      trim: true,
+      required: [true, "Site metadata description is required."],
+      maxlength: [240, "Site metadata description must be 240 characters or fewer."],
+    },
+    keywords: {
+      type: [String],
+      default: [],
+      validate: [
+        {
+          validator: (value: string[]) => value.length <= 12,
+          message: "Add up to 12 metadata keywords.",
+        },
+        {
+          validator: (value: string[]) => value.every((item) => item.trim().length > 0 && item.trim().length <= 80),
+          message: "Each keyword must be 1-80 characters long.",
+        },
+      ],
     },
   },
   { _id: false }
@@ -168,13 +227,37 @@ const SiteSettingsSchema = new Schema(
         message: "Add up to 8 social links.",
       },
     },
+    navigationItems: {
+      type: [NavigationItemSchema],
+      default: [],
+      validate: [
+        {
+          validator: (value: unknown[]) => value.length > 0 && value.length <= 10,
+          message: "Add between 1 and 10 navigation items.",
+        },
+        {
+          validator: (value: Array<{ href?: string }>) => {
+            const hrefs = value.map((item) => item?.href).filter(Boolean);
+            return new Set(hrefs).size === hrefs.length;
+          },
+          message: "Navigation links must be unique.",
+        },
+      ],
+    },
+    siteMetadata: {
+      type: SiteMetadataSchema,
+      default: () => ({
+        description: "",
+        keywords: [],
+      }),
+    },
     pageIntro: {
-      about: { type: PageIntroSchema, default: () => ({}) },
-      projects: { type: PageIntroSchema, default: () => ({}) },
-      experience: { type: PageIntroSchema, default: () => ({}) },
-      skills: { type: PageIntroSchema, default: () => ({}) },
-      achievements: { type: PageIntroSchema, default: () => ({}) },
-      contact: { type: PageIntroSchema, default: () => ({}) },
+      about: { type: PageIntroSchema, default: () => ({ path: "/about" }) },
+      projects: { type: PageIntroSchema, default: () => ({ path: "/projects" }) },
+      experience: { type: PageIntroSchema, default: () => ({ path: "/experience" }) },
+      skills: { type: PageIntroSchema, default: () => ({ path: "/skills" }) },
+      achievements: { type: PageIntroSchema, default: () => ({ path: "/achievements" }) },
+      contact: { type: PageIntroSchema, default: () => ({ path: "/contact" }) },
     },
   },
   { timestamps: true }

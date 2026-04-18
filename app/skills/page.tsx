@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
 import { RevealSection } from "@/components/Reveal";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, getSiteSettings, type SkillRecord } from "@/lib/data";
-import { createPageMetadata } from "@/lib/metadata";
-import { pageMetadata } from "@/lib/site-config";
+import { getSitePageMetadata } from "@/lib/metadata";
 import { getItemProficiency } from "@/lib/skill-utils";
 
-export const metadata: Metadata = createPageMetadata(pageMetadata.skills);
+export async function generateMetadata() {
+  return getSitePageMetadata("skills");
+}
 
 export default async function SkillsPage() {
   const [skills, siteSettings] = (await Promise.all([

@@ -1,6 +1,14 @@
 import dbConnect from "@/lib/mongodb";
 import { encodeSkillMap } from "@/lib/skill-map";
-import { defaultLandingPage, defaultSiteSettings } from "@/lib/site-content";
+import { SITE_PAGE_DETAILS, SITE_PAGE_KEYS } from "@/lib/site-content";
+import { landingPageDefaults, siteSettingsDefaults } from "@/content/site";
+import {
+  heroIntroLines,
+  heroSignals,
+  homeSections,
+  navigationItems,
+  siteMetadata,
+} from "@/content/structure";
 import {
   defaultAchievements,
   defaultCpProfiles,
@@ -19,6 +27,31 @@ import LandingPage from "@/models/LandingPage";
 import Project from "@/models/Project";
 import SiteSettings from "@/models/SiteSettings";
 import Skill from "@/models/Skill";
+
+const initialSiteSettings = {
+  ...siteSettingsDefaults,
+  navigationItems: navigationItems.map((item) => ({ ...item })),
+  siteMetadata: {
+    description: siteMetadata.description,
+    keywords: [...siteMetadata.keywords],
+  },
+  pageIntro: Object.fromEntries(
+    SITE_PAGE_KEYS.map((key) => [
+      key,
+      {
+        ...siteSettingsDefaults.pageIntro[key],
+        path: SITE_PAGE_DETAILS[key].path,
+      },
+    ])
+  ),
+};
+
+const initialLandingPage = {
+  ...landingPageDefaults,
+  heroIntroLines: [...heroIntroLines],
+  heroSignals: heroSignals.map((item) => ({ ...item })),
+  homeSections: homeSections.map((item) => ({ ...item })),
+};
 
 type SeedAction = "created" | "skipped";
 
@@ -146,7 +179,7 @@ export async function runPortfolioSeed(): Promise<SeedResult> {
     label: "Site Settings",
     model: SiteSettings,
     query: { singletonKey: "site-settings" },
-    data: defaultSiteSettings,
+    data: initialSiteSettings,
   });
 
   await seedSingleton(steps, {
@@ -154,7 +187,7 @@ export async function runPortfolioSeed(): Promise<SeedResult> {
     label: "Landing Page",
     model: LandingPage,
     query: { singletonKey: "landing-page" },
-    data: defaultLandingPage,
+    data: initialLandingPage,
   });
 
   await seedCollection(steps, {

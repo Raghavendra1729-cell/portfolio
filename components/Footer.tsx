@@ -5,11 +5,11 @@ import { usePathname } from "next/navigation";
 import ResumeActions from "@/components/ResumeActions";
 import SocialLinks from "@/components/SocialLinks";
 import type { SiteSettingsRecord } from "@/lib/data";
-import { publicNavItems } from "@/lib/site-config";
 
 export default function Footer({ siteSettings }: { siteSettings: SiteSettingsRecord }) {
   const pathname = usePathname();
   const currentYear = new Date().getFullYear();
+  const navigationItems = siteSettings.navigationItems.filter((item) => item.enabled);
 
   if (pathname.startsWith("/admin")) {
     return null;
@@ -40,7 +40,7 @@ export default function Footer({ siteSettings }: { siteSettings: SiteSettingsRec
               Explore
             </h3>
             <div className="mt-5 grid gap-3 text-sm text-slate-300">
-              {publicNavItems
+              {navigationItems
                 .filter((item) => item.href !== "/")
                 .map((item) => (
                   <Link key={item.href} href={item.href} className="inline-flex items-center gap-2 hover:text-white">

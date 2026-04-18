@@ -29,32 +29,17 @@ export default function PageHeader({
 
   return (
     <section className={cn("relative mb-14 border-b border-white/8 pb-9", className)}>
-      <div className={cn("grid gap-8 lg:grid-cols-[minmax(0,1fr)_18rem]", centered && "lg:grid-cols-1")}>
-        <div className={cn("max-w-4xl", centered && "mx-auto text-center")}>
-          <div className={cn("section-badge", centered && "justify-center")}>
-            <span>{eyebrow}</span>
-          </div>
-          <h1 className="mt-6 max-w-5xl text-balance text-4xl font-semibold tracking-[-0.075em] text-white sm:text-5xl lg:text-[4.6rem] lg:leading-[0.92]">
-            {title}
-          </h1>
-          <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
-            {description}
-          </p>
-          {children ? <div className="mt-7">{children}</div> : null}
+      <div className={cn("max-w-4xl", centered && "mx-auto text-center")}>
+        <div className={cn("section-badge", centered && "justify-center")}>
+          <span>{eyebrow}</span>
         </div>
-
-        {!centered ? (
-          <div className="hidden lg:block">
-            <div className="metric-panel surface-cut rounded-[1.5rem] p-5">
-              <p className="font-mono text-[0.68rem] uppercase tracking-[0.28em] text-slate-500">
-                Page signal
-              </p>
-              <p className="mt-4 text-sm leading-7 text-slate-300">
-                Clean hierarchy, restrained motion, and clearer content framing carry through each section.
-              </p>
-            </div>
-          </div>
-        ) : null}
+        <h1 className="mt-6 max-w-5xl text-balance text-4xl font-semibold tracking-[-0.075em] text-white sm:text-5xl lg:text-[4.6rem] lg:leading-[0.92]">
+          {title}
+        </h1>
+        <p className="mt-5 max-w-3xl text-base leading-8 text-slate-300 sm:text-lg">
+          {description}
+        </p>
+        {children ? <div className="mt-7">{children}</div> : null}
       </div>
 
       {stats.length > 0 ? (

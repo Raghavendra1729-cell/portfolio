@@ -1,13 +1,13 @@
-import type { Metadata } from "next";
 import { RevealSection } from "@/components/Reveal";
 import Projects from "@/components/Projects";
 import PageHeader from "@/components/layout/PageHeader";
 import PageShell from "@/components/layout/PageShell";
 import { getData, getSiteSettings } from "@/lib/data";
-import { createPageMetadata } from "@/lib/metadata";
-import { pageMetadata } from "@/lib/site-config";
+import { getSitePageMetadata } from "@/lib/metadata";
 
-export const metadata: Metadata = createPageMetadata(pageMetadata.projects);
+export async function generateMetadata() {
+  return getSitePageMetadata("projects");
+}
 
 export default async function ProjectsPage() {
   const [projects, siteSettings] = await Promise.all([getData("project"), getSiteSettings()]);

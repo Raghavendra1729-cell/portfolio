@@ -2,14 +2,29 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { AlertCircle, GripVertical, Image as ImageIcon, Save, Trash2, X } from "lucide-react";
+import {
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+  GripVertical,
+  Image as ImageIcon,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import FileUpload from "./FileUpload";
+import DocumentUpload from "./DocumentUpload";
 import {
   REQUIRED_FIELDS,
   type ContentCollectionId,
   validateContentData,
 } from "@/lib/content-schema";
+import {
+  LANDING_HOME_SECTION_LABELS,
+  SITE_PAGE_DETAILS,
+  SITE_PAGE_KEYS,
+} from "@/lib/site-content";
 import { cn } from "@/lib/utils";
 
 export type ItemFormSubmitResult = {
@@ -48,6 +63,12 @@ type SocialLinkField = {
   href: string;
 };
 
+type NavigationItemField = {
+  label: string;
+  href: string;
+  enabled: boolean;
+};
+
 type HighlightCardField = {
   title: string;
   description: string;
@@ -60,17 +81,39 @@ type FeaturedSectionField = {
   href: string;
 };
 
+type HeroSignalField = {
+  label: string;
+  value: string;
+};
+
+type HomeSectionField = {
+  id: string;
+  enabled: boolean;
+};
+
 type PageIntroField = {
   eyebrow: string;
   title: string;
   description: string;
+  path: string;
 };
 
 const EMPTY_PAGE_INTRO: PageIntroField = {
   eyebrow: "",
   title: "",
   description: "",
+  path: "",
 };
+
+const PAGE_INTRO_SECTIONS = SITE_PAGE_KEYS.map((key) => ({
+  key,
+  label: SITE_PAGE_DETAILS[key].label,
+  path: SITE_PAGE_DETAILS[key].path,
+})) as Array<{
+  key: (typeof SITE_PAGE_KEYS)[number];
+  label: string;
+  path: string;
+}>;
 
 function getStringValue(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? String(value) : "";
@@ -86,6 +129,19 @@ function getStringArrayValue(value: unknown) {
   }
 
   return value.filter((item): item is string => typeof item === "string");
+}
+
+function parseDelimitedStringArray(value: string, delimiter: "newline" | "comma" = "newline") {
+  const parts =
+    delimiter === "comma"
+      ? value
+          .split(/[\n,]+/)
+          .map((item) => item.trim())
+      : value
+          .split("\n")
+          .map((item) => item.trim());
+
+  return parts.filter(Boolean);
 }
 
 function getObjectArrayValue<T extends Record<string, string>>(
@@ -109,6 +165,33 @@ function getObjectArrayValue<T extends Record<string, string>>(
   }, []);
 }
 
+function getStructuredArrayValue<T extends Record<string, string | boolean>>(
+  value: unknown,
+  config: {
+    stringKeys: Array<keyof T & string>;
+    booleanKeys: Array<keyof T & string>;
+  }
+) {
+  if (!Array.isArray(value)) {
+    return [] as T[];
+  }
+
+  return value.reduce<T[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const record = item as Record<string, unknown>;
+    items.push(
+      Object.fromEntries([
+        ...config.stringKeys.map((key) => [key, getStringValue(record[key]).trim()]),
+        ...config.booleanKeys.map((key) => [key, getBooleanValue(record[key])]),
+      ]) as T
+    );
+    return items;
+  }, []);
+}
+
 function getPageIntroValue(value: unknown): PageIntroField {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return { ...EMPTY_PAGE_INTRO };
@@ -120,30 +203,56 @@ function getPageIntroValue(value: unknown): PageIntroField {
     eyebrow: getStringValue(record.eyebrow).trim(),
     title: getStringValue(record.title).trim(),
     description: getStringValue(record.description).trim(),
+    path: getStringValue(record.path).trim(),
   };
 }
 
 function getPageIntroMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return Object.fromEntries(
+      PAGE_INTRO_SECTIONS.map((section) => [
+        section.key,
+        {
+          ...EMPTY_PAGE_INTRO,
+          path: section.path,
+        },
+      ])
+    ) as Record<(typeof SITE_PAGE_KEYS)[number], PageIntroField>;
+  }
+
+  const record = value as Record<string, unknown>;
+
+  return Object.fromEntries(
+    PAGE_INTRO_SECTIONS.map((section) => {
+      const intro = getPageIntroValue(record[section.key]);
+
+      return [
+        section.key,
+        {
+          ...EMPTY_PAGE_INTRO,
+          ...intro,
+          path: intro.path || section.path,
+        },
+      ];
+    })
+  ) as Record<(typeof SITE_PAGE_KEYS)[number], PageIntroField>;
+}
+
+function getSiteMetadataValue(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {
-      about: { ...EMPTY_PAGE_INTRO },
-      projects: { ...EMPTY_PAGE_INTRO },
-      experience: { ...EMPTY_PAGE_INTRO },
-      skills: { ...EMPTY_PAGE_INTRO },
-      achievements: { ...EMPTY_PAGE_INTRO },
-      contact: { ...EMPTY_PAGE_INTRO },
+      description: "",
+      keywords: [],
     };
   }
 
   const record = value as Record<string, unknown>;
 
   return {
-    about: getPageIntroValue(record.about),
-    projects: getPageIntroValue(record.projects),
-    experience: getPageIntroValue(record.experience),
-    skills: getPageIntroValue(record.skills),
-    achievements: getPageIntroValue(record.achievements),
-    contact: getPageIntroValue(record.contact),
+    description: getStringValue(record.description).trim(),
+    keywords: Array.isArray(record.keywords)
+      ? record.keywords.filter((item): item is string => typeof item === "string")
+      : [],
   };
 }
 
@@ -271,20 +380,25 @@ function syncSkillMaps(itemsValue: unknown, data: Record<string, unknown>) {
     .map((item) => item.trim())
     .filter(Boolean);
 
-  const nextProficiency = getNumberMap(data.proficiency);
-  const nextFocusSignals = getStringMap(data.focusSignals);
+  const itemKeyMap = new Map(items.map((item) => [item.toLowerCase(), item]));
+  const nextProficiency = Object.entries(getNumberMap(data.proficiency)).reduce<Record<string, number>>((acc, [key, value]) => {
+    const canonicalKey = itemKeyMap.get(key.trim().toLowerCase());
 
-  Object.keys(nextProficiency).forEach((key) => {
-    if (!items.includes(key)) {
-      delete nextProficiency[key];
+    if (canonicalKey) {
+      acc[canonicalKey] = value;
     }
-  });
 
-  Object.keys(nextFocusSignals).forEach((key) => {
-    if (!items.includes(key)) {
-      delete nextFocusSignals[key];
+    return acc;
+  }, {});
+  const nextFocusSignals = Object.entries(getStringMap(data.focusSignals)).reduce<Record<string, string>>((acc, [key, value]) => {
+    const canonicalKey = itemKeyMap.get(key.trim().toLowerCase());
+
+    if (canonicalKey && value.trim()) {
+      acc[canonicalKey] = value.trim();
     }
-  });
+
+    return acc;
+  }, {});
 
   items.forEach((item) => {
     if (!(item in nextProficiency)) {
@@ -324,6 +438,11 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
         primaryResumeDownloadHref: "",
         alternateResumeLinks: [],
         socialLinks: [],
+        navigationItems: [],
+        siteMetadata: {
+          description: "",
+          keywords: [],
+        },
         pageIntro: getPageIntroMap(undefined),
       };
     }
@@ -334,6 +453,8 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
         heroTitle: "",
         heroSubtitle: "",
         heroSummary: "",
+        heroIntroLines: [],
+        heroSignals: [],
         primaryCtaLabel: "",
         primaryCtaHref: "",
         secondaryCtaLabel: "",
@@ -352,6 +473,10 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
         exploreTitle: "",
         exploreDescription: "",
         featuredSections: [],
+        homeSections: Object.keys(LANDING_HOME_SECTION_LABELS).map((id) => ({
+          id,
+          enabled: true,
+        })),
         contactEyebrow: "",
         contactTitle: "",
         contactDescription: "",
@@ -435,13 +560,24 @@ function normalizeInitialData(collection: ContentCollectionId, data?: Record<str
       isVisible: collection === "cpProfile" ? !("isVisible" in data) || getBooleanValue(data.isVisible) : data.isVisible,
       alternateResumeLinks: getObjectArrayValue<ResumeAlternateField>(data.alternateResumeLinks, ["label", "href"]),
       socialLinks: getObjectArrayValue<SocialLinkField>(data.socialLinks, ["kind", "label", "value", "href"]),
+      navigationItems: getStructuredArrayValue<NavigationItemField>(data.navigationItems, {
+        stringKeys: ["label", "href"],
+        booleanKeys: ["enabled"],
+      }),
+      siteMetadata: getSiteMetadataValue(data.siteMetadata),
       highlightCards: getObjectArrayValue<HighlightCardField>(data.highlightCards, ["title", "description"]),
+      heroSignals: getObjectArrayValue<HeroSignalField>(data.heroSignals, ["label", "value"]),
+      heroIntroLines: getStringArrayValue(data.heroIntroLines),
       featuredSections: getObjectArrayValue<FeaturedSectionField>(data.featuredSections, [
         "label",
         "title",
         "description",
         "href",
       ]),
+      homeSections: getStructuredArrayValue<HomeSectionField>(data.homeSections, {
+        stringKeys: ["id"],
+        booleanKeys: ["enabled"],
+      }),
       pageIntro: getPageIntroMap(data.pageIntro),
     };
 
@@ -569,12 +705,12 @@ type SummaryData = {
 
 const COLLECTION_TIPS: Record<ContentCollectionId, string[]> = {
   siteSettings: [
-    "Treat this as the single source of truth for identity, resume links, social links, and shared page copy.",
+    "Treat this as the single source of truth for identity, navigation, SEO metadata, and shared page copy.",
     "Use the profile image uploader here instead of hardcoding homepage assets.",
-    "Keep page intros concise so every route opens with a clean, scannable message.",
+    "Keep page intros concise and paths accurate so headers and metadata stay aligned.",
   ],
   landingPage: [
-    "This document controls hero messaging, homepage section structure, and curated navigation cards.",
+    "This document controls hero messaging, homepage section order, and curated navigation cards.",
     "Featured project and achievement counts work best when the corresponding content items are flagged as featured.",
     "Use restrained copy here so the homepage feels intentional instead of crowded.",
   ],
@@ -636,6 +772,11 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
       formData.alternateResumeLinks,
       ["label", "href"]
     );
+    const navigationItems = getStructuredArrayValue<NavigationItemField>(formData.navigationItems, {
+      stringKeys: ["label", "href"],
+      booleanKeys: ["enabled"],
+    });
+    const siteMetadata = getSiteMetadataValue(formData.siteMetadata);
     const pageIntro = getPageIntroMap(formData.pageIntro);
 
     if (getStringValue(formData.location).trim()) {
@@ -647,9 +788,13 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
     }
 
     stats.push(
-      { label: "Social", value: String(socialLinks.length) },
-      { label: "Resume", value: String(alternateResumeLinks.length + (getStringValue(formData.primaryResumeViewHref).trim() ? 1 : 0)) },
+      { label: "Nav", value: String(navigationItems.length) },
+      { label: "Keywords", value: String(siteMetadata.keywords.length) },
       { label: "Pages", value: String(Object.values(pageIntro).filter((item) => item.title).length) }
+    );
+    badges.push(`${socialLinks.length} social links`);
+    badges.push(
+      `${alternateResumeLinks.length + (getStringValue(formData.primaryResumeViewHref).trim() ? 1 : 0)} resume actions`
     );
     notes.push(...getStringArrayValue(formData.aboutParagraphs).slice(0, 2));
   }
@@ -659,6 +804,11 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
       "title",
       "description",
     ]);
+    const heroSignals = getObjectArrayValue<HeroSignalField>(formData.heroSignals, ["label", "value"]);
+    const homeSections = getStructuredArrayValue<HomeSectionField>(formData.homeSections, {
+      stringKeys: ["id"],
+      booleanKeys: ["enabled"],
+    });
     const featuredSections = getObjectArrayValue<FeaturedSectionField>(formData.featuredSections, [
       "label",
       "title",
@@ -675,10 +825,12 @@ function getSummaryData(collection: ContentCollectionId, formData: Record<string
     }
 
     stats.push(
-      { label: "Highlights", value: String(highlightCards.length) },
-      { label: "Routes", value: String(featuredSections.length) },
-      { label: "Projects", value: getStringValue(formData.maxFeaturedProjects).trim() || "3" }
+      { label: "Signals", value: String(heroSignals.length) },
+      { label: "Sections", value: String(homeSections.length) },
+      { label: "Explore", value: String(featuredSections.length) }
     );
+    badges.push(`${highlightCards.length} highlight cards`);
+    badges.push(`${getStringArrayValue(formData.heroIntroLines).length} intro lines`);
     notes.push(...highlightCards.slice(0, 2).map((item) => item.title));
   }
 
@@ -934,12 +1086,20 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     });
 
     setFieldErrors((prev) => {
-      if (!prev[name]) {
+      const shouldClearSkillMapErrors = collection === "skill" && name === "items";
+
+      if (!prev[name] && !shouldClearSkillMapErrors) {
         return prev;
       }
 
       const nextErrors = { ...prev };
       delete nextErrors[name];
+
+      if (shouldClearSkillMapErrors) {
+        delete nextErrors.proficiency;
+        delete nextErrors.focusSignals;
+      }
+
       return nextErrors;
     });
     setFormError(null);
@@ -974,7 +1134,31 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     });
   };
 
-  const updateStructuredListField = <T extends Record<string, string>>(
+  const updateSiteMetadataField = (
+    field: keyof ReturnType<typeof getSiteMetadataValue>,
+    value: string | string[]
+  ) => {
+    const current = getSiteMetadataValue(formData.siteMetadata);
+
+    updateField("siteMetadata", {
+      ...current,
+      [field]: value,
+    });
+
+    setFieldErrors((prev) => {
+      const key = `siteMetadata.${field}`;
+
+      if (!prev[key]) {
+        return prev;
+      }
+
+      const nextErrors = { ...prev };
+      delete nextErrors[key];
+      return nextErrors;
+    });
+  };
+
+  const updateStructuredListField = <T extends Record<string, string | boolean>>(
     name: string,
     nextItems: T[]
   ) => {
@@ -992,17 +1176,29 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
     updateField(target.name, target.value);
   };
 
-  const handleArrayChange = (e: React.ChangeEvent<HTMLTextAreaElement>, field: string) => {
-    const array = e.target.value
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
+  const handleArrayChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+    field: string,
+    delimiter: "newline" | "comma" = "newline"
+  ) => {
+    const array = parseDelimitedStringArray(e.target.value, delimiter);
 
     updateField(field, array);
   };
 
+  const handleSiteMetadataKeywordsChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const keywords = parseDelimitedStringArray(e.target.value, "comma");
+
+    updateSiteMetadataField("keywords", keywords);
+  };
+
   const handleImageUpload = (url: string, field: string) => {
     updateField(field, url);
+  };
+
+  const handleResumeUpload = (url: string) => {
+    updateField("primaryResumeViewHref", url);
+    updateField("primaryResumeDownloadHref", url);
   };
 
   const handleMultipleImageUpload = (url: string, field: string) => {
@@ -1172,6 +1368,11 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   <InputGroup label="View Link" name="primaryResumeViewHref" type="url" value={formData.primaryResumeViewHref} onChange={handleChange} error={fieldErrors.primaryResumeViewHref} placeholder="https://..." />
                   <InputGroup label="Download Link" name="primaryResumeDownloadHref" type="url" value={formData.primaryResumeDownloadHref} onChange={handleChange} error={fieldErrors.primaryResumeDownloadHref} placeholder="https://..." />
                 </div>
+                <DocumentUpload
+                  label="Upload Resume"
+                  initialUrl={getStringValue(formData.primaryResumeViewHref) || getStringValue(formData.primaryResumeDownloadHref) || undefined}
+                  onUpload={handleResumeUpload}
+                />
                 <StructuredArrayGroup
                   label="Alternate Resume Links"
                   description="Optional backup or alternate-format resume links."
@@ -1207,6 +1408,48 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                 />
               </FormSection>
 
+              <FormSection title="Navigation & metadata" description="Manage the public navbar order and the shared SEO metadata directly from the admin panel.">
+                <StructuredArrayGroup
+                  label="Navigation Items"
+                  description="Use internal paths, toggle visibility, and reorder items to match the navbar and footer."
+                  items={getStructuredArrayValue<NavigationItemField>(formData.navigationItems, {
+                    stringKeys: ["label", "href"],
+                    booleanKeys: ["enabled"],
+                  })}
+                  onChange={(items) => updateStructuredListField("navigationItems", items)}
+                  addLabel="Add nav item"
+                  error={fieldErrors.navigationItems}
+                  fields={[
+                    { key: "label", label: "Label", placeholder: "Projects" },
+                    { key: "href", label: "Path", placeholder: "/projects" },
+                    {
+                      key: "enabled",
+                      label: "Enabled",
+                      type: "checkbox",
+                      description: "Disable an item without removing its placement.",
+                    },
+                  ]}
+                />
+                <TextAreaGroup
+                  label="Site Description"
+                  name="siteMetadata-description"
+                  value={getSiteMetadataValue(formData.siteMetadata).description}
+                  onChange={(event) => updateSiteMetadataField("description", event.target.value)}
+                  rows={3}
+                  error={fieldErrors["siteMetadata.description"]}
+                  placeholder="Portfolio description used for SEO and social previews."
+                />
+                <ArrayInputGroup
+                  label="Metadata Keywords"
+                  name="siteMetadata-keywords"
+                  value={getSiteMetadataValue(formData.siteMetadata).keywords}
+                  onChange={handleSiteMetadataKeywordsChange}
+                  placeholder="Full-stack developer, Next.js portfolio, TypeScript engineer"
+                  error={fieldErrors["siteMetadata.keywords"]}
+                  delimiter="comma"
+                />
+              </FormSection>
+
               <FormSection title="About content" description="Keep the primary about copy here so the public about page stays editable without touching code.">
                 <ArrayInputGroup
                   label="About Paragraphs"
@@ -1220,25 +1463,17 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
               <FormSection title="Page intros" description="These fields control the intro copy on the main public routes.">
                 <div className="grid gap-4">
-                  {(
-                    [
-                      ["about", "About"],
-                      ["projects", "Projects"],
-                      ["experience", "Experience"],
-                      ["skills", "Skills"],
-                      ["achievements", "Achievements"],
-                      ["contact", "Contact"],
-                    ] as Array<[keyof ReturnType<typeof getPageIntroMap>, string]>
-                  ).map(([section, label]) => (
+                  {PAGE_INTRO_SECTIONS.map(({ key, label }) => (
                     <PageIntroEditor
-                      key={section}
+                      key={key}
                       label={label}
-                      value={getPageIntroMap(formData.pageIntro)[section]}
-                      onChange={(field, value) => updatePageIntroField(section, field, value)}
+                      value={getPageIntroMap(formData.pageIntro)[key]}
+                      onChange={(field, value) => updatePageIntroField(key, field, value)}
                       errors={{
-                        eyebrow: fieldErrors[`pageIntro.${section}.eyebrow`],
-                        title: fieldErrors[`pageIntro.${section}.title`],
-                        description: fieldErrors[`pageIntro.${section}.description`],
+                        eyebrow: fieldErrors[`pageIntro.${key}.eyebrow`],
+                        title: fieldErrors[`pageIntro.${key}.title`],
+                        description: fieldErrors[`pageIntro.${key}.description`],
+                        path: fieldErrors[`pageIntro.${key}.path`],
                       }}
                     />
                   ))}
@@ -1255,6 +1490,14 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   <TextAreaGroup label="Hero Title" name="heroTitle" value={formData.heroTitle} onChange={handleChange} rows={3} required error={fieldErrors.heroTitle} placeholder="Building product-grade software with clarity, speed, and technical range." />
                   <TextAreaGroup label="Hero Subtitle" name="heroSubtitle" value={formData.heroSubtitle} onChange={handleChange} rows={3} required error={fieldErrors.heroSubtitle} placeholder="Short, sharp value statement." />
                   <TextAreaGroup label="Hero Summary" name="heroSummary" value={formData.heroSummary} onChange={handleChange} rows={3} error={fieldErrors.heroSummary} placeholder="Optional supporting summary under the hero." />
+                  <ArrayInputGroup
+                    label="Hero Intro Lines"
+                    name="heroIntroLines"
+                    value={getStringArrayValue(formData.heroIntroLines)}
+                    onChange={(e) => handleArrayChange(e, "heroIntroLines")}
+                    placeholder="Full-stack systems with clean architecture&#10;Premium interfaces with restrained motion"
+                    error={fieldErrors.heroIntroLines}
+                  />
                 </div>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div className="grid gap-6">
@@ -1266,6 +1509,18 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                     <InputGroup label="Secondary CTA Link" name="secondaryCtaHref" value={formData.secondaryCtaHref} onChange={handleChange} error={fieldErrors.secondaryCtaHref} placeholder="/contact" />
                   </div>
                 </div>
+                <StructuredArrayGroup
+                  label="Hero Signals"
+                  description="These compact signal blocks sit under the hero CTA row."
+                  items={getObjectArrayValue<HeroSignalField>(formData.heroSignals, ["label", "value"])}
+                  onChange={(items) => updateStructuredListField("heroSignals", items)}
+                  addLabel="Add hero signal"
+                  error={fieldErrors.heroSignals}
+                  fields={[
+                    { key: "label", label: "Label", placeholder: "Focus" },
+                    { key: "value", label: "Value", placeholder: "Product-grade web apps" },
+                  ]}
+                />
               </FormSection>
 
               <FormSection title="Signal cards" description="These are the compact highlight cards directly under the hero.">
@@ -1340,6 +1595,35 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                 />
               </FormSection>
 
+              <FormSection title="Home section order" description="Toggle homepage sections on or off and move them into the order you want rendered.">
+                <StructuredArrayGroup
+                  label="Home Sections"
+                  description="The list order controls render order on the homepage."
+                  items={getStructuredArrayValue<HomeSectionField>(formData.homeSections, {
+                    stringKeys: ["id"],
+                    booleanKeys: ["enabled"],
+                  })}
+                  onChange={(items) => updateStructuredListField("homeSections", items)}
+                  addLabel="Add section"
+                  error={fieldErrors.homeSections}
+                  fields={[
+                    {
+                      key: "id",
+                      label: "Section ID",
+                      placeholder: Object.entries(LANDING_HOME_SECTION_LABELS)
+                        .map(([id, label]) => `${id} (${label})`)
+                        .join(", "),
+                    },
+                    {
+                      key: "enabled",
+                      label: "Enabled",
+                      type: "checkbox",
+                      description: "Hide a section without removing its place in the order.",
+                    },
+                  ]}
+                />
+              </FormSection>
+
               <FormSection title="Closing CTA" description="Set the final low-noise CTA block at the bottom of the landing page.">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <InputGroup label="Eyebrow" name="contactEyebrow" value={formData.contactEyebrow} onChange={handleChange} error={fieldErrors.contactEyebrow} placeholder="Next step" />
@@ -1360,9 +1644,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                     label="Tech Stack"
                     name="techStack"
                     value={getStringArrayValue(formData.techStack)}
-                    onChange={(e) => handleArrayChange(e, "techStack")}
-                    placeholder="Next.js&#10;TypeScript&#10;PostgreSQL"
+                    onChange={(e) => handleArrayChange(e, "techStack", "comma")}
+                    placeholder="Next.js, TypeScript, PostgreSQL"
                     error={fieldErrors.techStack}
+                    delimiter="comma"
                   />
                 </div>
               </FormSection>
@@ -1440,9 +1725,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Technologies Used"
                   name="technologies"
                   value={getStringArrayValue(formData.technologies)}
-                  onChange={(e) => handleArrayChange(e, "technologies")}
-                  placeholder="React&#10;Node.js&#10;Redis"
+                  onChange={(e) => handleArrayChange(e, "technologies", "comma")}
+                  placeholder="React, Node.js, Redis"
                   error={fieldErrors.technologies}
+                  delimiter="comma"
                 />
               </FormSection>
 
@@ -1459,9 +1745,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Attachments"
                   name="attachments"
                   value={getStringArrayValue(formData.attachments)}
-                  onChange={(e) => handleArrayChange(e, "attachments")}
-                  placeholder="https://example.com/certificate.pdf"
+                  onChange={(e) => handleArrayChange(e, "attachments", "comma")}
+                  placeholder="https://example.com/certificate.pdf, https://example.com/offer-letter.pdf"
                   error={fieldErrors.attachments}
+                  delimiter="comma"
                 />
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
                   <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4">
@@ -1511,9 +1798,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Coursework"
                   name="coursework"
                   value={getStringArrayValue(formData.coursework)}
-                  onChange={(e) => handleArrayChange(e, "coursework")}
-                  placeholder="Data Structures&#10;Operating Systems"
+                  onChange={(e) => handleArrayChange(e, "coursework", "comma")}
+                  placeholder="Data Structures, Operating Systems"
                   error={fieldErrors.coursework}
+                  delimiter="comma"
                 />
                 <ArrayInputGroup
                   label="Highlights"
@@ -1527,9 +1815,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Attachments"
                   name="attachments"
                   value={getStringArrayValue(formData.attachments)}
-                  onChange={(e) => handleArrayChange(e, "attachments")}
-                  placeholder="https://example.com/transcript.pdf"
+                  onChange={(e) => handleArrayChange(e, "attachments", "comma")}
+                  placeholder="https://example.com/transcript.pdf, https://example.com/certificate.pdf"
                   error={fieldErrors.attachments}
+                  delimiter="comma"
                 />
               </FormSection>
             </>
@@ -1649,9 +1938,10 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Tech Stack"
                   name="techStack"
                   value={getStringArrayValue(formData.techStack)}
-                  onChange={(e) => handleArrayChange(e, "techStack")}
-                  placeholder="Next.js&#10;OpenAI API&#10;Redis"
+                  onChange={(e) => handleArrayChange(e, "techStack", "comma")}
+                  placeholder="Next.js, OpenAI API, Redis"
                   error={fieldErrors.techStack}
+                  delimiter="comma"
                 />
                 <LinkLinesGroup
                   label="Links"
@@ -1726,7 +2016,7 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
 
           {collection === "skill" && (
             <>
-              <FormSection title="Category setup" description="Create the category and add one skill item per line to unlock the proficiency editor.">
+              <FormSection title="Category setup" description="Create the category and add comma-separated skill items to unlock the proficiency editor.">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_auto]">
                   <InputGroup
                     label="Category Name"
@@ -1743,10 +2033,11 @@ export default function ItemForm({ initialData, collection, onSubmit, onCancel }
                   label="Skill Items"
                   name="items"
                   value={skillItems}
-                  onChange={(e) => handleArrayChange(e, "items")}
-                  placeholder="TypeScript&#10;Next.js&#10;PostgreSQL"
+                  onChange={(e) => handleArrayChange(e, "items", "comma")}
+                  placeholder="TypeScript, Next.js, PostgreSQL"
                   required
                   error={fieldErrors.items}
+                  delimiter="comma"
                 />
               </FormSection>
 
@@ -1964,6 +2255,14 @@ function PageIntroEditor({
           error={errors?.description}
           placeholder={`Short intro for the ${label.toLowerCase()} page.`}
         />
+        <InputGroup
+          label="Path"
+          name={`${label}-path`}
+          value={value.path}
+          onChange={(event) => onChange("path", event.target.value)}
+          error={errors?.path}
+          placeholder={`/${label.toLowerCase()}`}
+        />
       </div>
     </div>
   );
@@ -1973,10 +2272,11 @@ type StructuredArrayField = {
   key: string;
   label: string;
   placeholder?: string;
-  type?: "text" | "url" | "textarea";
+  description?: string;
+  type?: "text" | "url" | "textarea" | "checkbox";
 };
 
-function StructuredArrayGroup<T extends Record<string, string>>({
+function StructuredArrayGroup<T extends Record<string, string | boolean>>({
   label,
   description,
   items,
@@ -1994,9 +2294,11 @@ function StructuredArrayGroup<T extends Record<string, string>>({
   error?: string;
 }) {
   const createItem = () =>
-    Object.fromEntries(fields.map((field) => [field.key, ""])) as T;
+    Object.fromEntries(
+      fields.map((field) => [field.key, field.type === "checkbox" ? false : ""])
+    ) as T;
 
-  const updateItem = (index: number, key: string, value: string) => {
+  const updateItem = (index: number, key: string, value: string | boolean) => {
     const nextItems = items.map((item, itemIndex) =>
       itemIndex === index ? ({ ...item, [key]: value } as T) : item
     );
@@ -2009,6 +2311,16 @@ function StructuredArrayGroup<T extends Record<string, string>>({
 
   const removeItem = (index: number) => {
     onChange(items.filter((_, itemIndex) => itemIndex !== index));
+  };
+
+  const moveItem = (index: number, direction: "up" | "down") => {
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (nextIndex < 0 || nextIndex >= items.length) {
+      return;
+    }
+
+    onChange(reorderItems(items, index, nextIndex));
   };
 
   return (
@@ -2037,14 +2349,34 @@ function StructuredArrayGroup<T extends Record<string, string>>({
             <div key={`${label}-${index}`} className="rounded-xl border border-border/60 bg-card p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-medium text-foreground">{label} {index + 1}</p>
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/15"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Remove
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveItem(index, "up")}
+                    disabled={index === 0}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5" />
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveItem(index, "down")}
+                    disabled={index === items.length - 1}
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary/30 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    className="inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition hover:bg-destructive/15"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Remove
+                  </button>
+                </div>
               </div>
 
               <div className="mt-4 grid gap-4">
@@ -2054,17 +2386,26 @@ function StructuredArrayGroup<T extends Record<string, string>>({
                       key={field.key}
                       label={field.label}
                       name={`${label}-${field.key}-${index}`}
-                      value={item[field.key]}
+                      value={getStringValue(item[field.key])}
                       onChange={(event) => updateItem(index, field.key, event.target.value)}
                       rows={3}
                       placeholder={field.placeholder}
+                    />
+                  ) : field.type === "checkbox" ? (
+                    <CheckboxGroup
+                      key={field.key}
+                      label={field.label}
+                      name={`${label}-${field.key}-${index}`}
+                      checked={Boolean(item[field.key])}
+                      onChange={(event) => updateItem(index, field.key, event.target.checked)}
+                      description={field.description}
                     />
                   ) : (
                     <InputGroup
                       key={field.key}
                       label={field.label}
                       name={`${label}-${field.key}-${index}`}
-                      value={item[field.key]}
+                      value={getStringValue(item[field.key])}
                       onChange={(event) => updateItem(index, field.key, event.target.value)}
                       type={field.type || "text"}
                       placeholder={field.placeholder}
@@ -2441,15 +2782,28 @@ interface ArrayInputGroupProps {
   placeholder?: string;
   required?: boolean;
   error?: string;
+  delimiter?: "newline" | "comma";
 }
 
-function ArrayInputGroup({ label, name, value, onChange, placeholder, required, error }: ArrayInputGroupProps) {
+function ArrayInputGroup({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required,
+  error,
+  delimiter = "newline",
+}: ArrayInputGroupProps) {
   const items = Array.isArray(value)
     ? value
-    : getStringValue(value)
-        .split("\n")
-        .map((item) => item.trim())
-        .filter(Boolean);
+    : parseDelimitedStringArray(getStringValue(value), delimiter);
+  const delimiterLabel = delimiter === "comma" ? "Comma separated" : "One item per line";
+  const renderedValue = Array.isArray(value)
+    ? delimiter === "comma"
+      ? value.join(", ")
+      : value.join("\n")
+    : getStringValue(value);
 
   return (
     <div className="group w-full">
@@ -2460,11 +2814,11 @@ function ArrayInputGroup({ label, name, value, onChange, placeholder, required, 
             {items.length}
           </span>
         </span>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/70">One item per line</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground/70">{delimiterLabel}</span>
       </label>
       <textarea
         name={name}
-        value={Array.isArray(value) ? value.join("\n") : getStringValue(value)}
+        value={renderedValue}
         onChange={onChange}
         rows={5}
         placeholder={placeholder}

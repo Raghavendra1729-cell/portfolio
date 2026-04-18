@@ -13,6 +13,38 @@ function normalizeKey(value: string) {
   return value.trim().toLowerCase();
 }
 
+function getItemsForValidation(context: {
+  items?: string[];
+  getUpdate?: () => Record<string, unknown> | null;
+}) {
+  if (Array.isArray(context.items)) {
+    return context.items;
+  }
+
+  const update = typeof context.getUpdate === "function" ? context.getUpdate() : null;
+
+  if (!update || typeof update !== "object") {
+    return [] as string[];
+  }
+
+  const updateRecord = update as Record<string, unknown>;
+
+  if (Array.isArray(updateRecord.items)) {
+    return updateRecord.items.filter((item): item is string => typeof item === "string");
+  }
+
+  const setRecord =
+    "$set" in updateRecord && updateRecord.$set && typeof updateRecord.$set === "object"
+      ? (updateRecord.$set as Record<string, unknown>)
+      : null;
+
+  if (setRecord && Array.isArray(setRecord.items)) {
+    return setRecord.items.filter((item): item is string => typeof item === "string");
+  }
+
+  return [] as string[];
+}
+
 const SkillSchema = new Schema(
   {
     category: {
@@ -56,10 +88,10 @@ const SkillSchema = new Schema(
         },
         {
           validator: function (
-            this: { items?: string[] },
+            this: { items?: string[]; getUpdate?: () => Record<string, unknown> | null },
             value: Map<string, number> | Record<string, number>
           ) {
-            const itemKeys = new Set((this.items || []).map(normalizeKey));
+            const itemKeys = new Set(getItemsForValidation(this).map(normalizeKey));
             return getMapEntries(value).every(([key]) =>
               itemKeys.has(normalizeKey(decodeSkillMapKey(key)))
             );
@@ -82,10 +114,10 @@ const SkillSchema = new Schema(
         },
         {
           validator: function (
-            this: { items?: string[] },
+            this: { items?: string[]; getUpdate?: () => Record<string, unknown> | null },
             value: Map<string, string> | Record<string, string>
           ) {
-            const itemKeys = new Set((this.items || []).map(normalizeKey));
+            const itemKeys = new Set(getItemsForValidation(this).map(normalizeKey));
             return getMapEntries(value).every(([key]) =>
               itemKeys.has(normalizeKey(decodeSkillMapKey(key)))
             );

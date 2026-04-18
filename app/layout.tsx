@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
@@ -6,7 +5,7 @@ import Footer from "@/components/Footer";
 import CursorSpotlight from "@/components/CursorSpotlight";
 import { Toaster } from "sonner";
 import { getSiteSettings } from "@/lib/data";
-import { siteConfig } from "@/lib/site-config";
+import { getRootMetadata } from "@/lib/metadata";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -20,23 +19,9 @@ const jetBrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: {
-    default: `${siteConfig.name} | ${siteConfig.role}`,
-    template: `%s | ${siteConfig.name}`,
-  },
-  description: siteConfig.description,
-  keywords: siteConfig.keywords,
-  openGraph: {
-    title: `${siteConfig.name} | ${siteConfig.role}`,
-    description: siteConfig.description,
-    type: "website",
-    url: siteUrl,
-  },
-};
+export async function generateMetadata() {
+  return getRootMetadata();
+}
 
 export default async function RootLayout({
   children,

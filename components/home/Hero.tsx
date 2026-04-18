@@ -8,22 +8,15 @@ import SocialLinks from "@/components/SocialLinks";
 import { RevealSection } from "@/components/Reveal";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 import type { LandingPageRecord, SiteSettingsRecord } from "@/lib/data";
-import { siteConfig } from "@/lib/site-config";
+import { DEFAULT_PROFILE_IMAGE } from "@/lib/site-content";
 
 type HeroProps = {
   siteSettings: SiteSettingsRecord;
   landingPage: LandingPageRecord;
-  introLines: readonly string[];
-  signals: ReadonlyArray<{ label: string; value: string }>;
 };
 
-export default function Hero({
-  siteSettings,
-  landingPage,
-  introLines,
-  signals,
-}: HeroProps) {
-  const profileImage = siteSettings.profileImage || siteConfig.defaultProfileImage;
+export default function Hero({ siteSettings, landingPage }: HeroProps) {
+  const profileImage = siteSettings.profileImage || DEFAULT_PROFILE_IMAGE;
   const profileAlt = siteSettings.profileImageAlt || `${siteSettings.name} portrait`;
 
   return (
@@ -49,9 +42,9 @@ export default function Hero({
           </div>
         </div>
 
-        {introLines.length > 0 ? (
+        {landingPage.heroIntroLines.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-3">
-            {introLines.map((line, index) => (
+            {landingPage.heroIntroLines.map((line, index) => (
               <div key={line} className="metric-panel surface-cut rounded-[1.15rem] p-4">
                 <p className="font-mono text-[0.64rem] uppercase tracking-[0.28em] text-slate-500">
                   {String(index + 1).padStart(2, "0")}
@@ -90,9 +83,9 @@ export default function Hero({
 
         <ResumeActions siteSettings={siteSettings} />
 
-        {signals.length > 0 ? (
+        {landingPage.heroSignals.length > 0 ? (
           <div className="grid gap-3 md:grid-cols-3">
-            {signals.map((signal) => (
+            {landingPage.heroSignals.map((signal) => (
               <div key={signal.label} className="surface-cut border border-white/8 bg-white/[0.025] p-4">
                 <p className="font-mono text-[0.63rem] uppercase tracking-[0.28em] text-slate-500">
                   {signal.label}

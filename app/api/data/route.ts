@@ -5,6 +5,7 @@ import {
   listContentDocuments,
   resolveContentCollection,
 } from "@/lib/content-service";
+import { normalizeCollectionItem, normalizeCollectionItems } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +33,11 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ success: false, message: "Content item not found." }, { status: 404 });
       }
 
-      return NextResponse.json({ success: true, data });
+      return NextResponse.json({ success: true, data: normalizeCollectionItem(collection, data) });
     }
 
     const data = await listContentDocuments(collection, { includeHidden: true });
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({ success: true, data: normalizeCollectionItems(collection, data) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch data.";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

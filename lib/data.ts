@@ -1,37 +1,36 @@
 import { cache } from "react";
-import { headers } from "next/headers";
-import {
-  defaultAchievements,
-  defaultCpProfiles,
-  defaultEducation,
-  defaultExperience,
-  defaultHackathons,
-  defaultProjects,
-  defaultSkills,
-} from "@/content/collections";
 import {
   getContentDocumentById,
   getSingletonContentDocument,
   listContentDocuments,
+  listFeaturedContentDocuments,
 } from "@/lib/content-service";
 import {
-  defaultLandingPage,
-  defaultSiteSettings,
+  LANDING_HOME_SECTION_IDS,
+  SITE_PAGE_KEYS,
+  fallbackLandingPage,
+  fallbackSiteSettings,
   type LandingFeaturedSection,
-  type LandingHighlight,
+  type LandingHeroSignal,
+  type LandingHomeSection,
   type LandingPageRecord,
+  type NavigationItem,
   type PageIntro,
   type ResumeAlternateLink,
+  type SiteMetadataConfig,
   type SiteSettingsRecord,
   type SocialLink,
 } from "@/lib/site-content";
 
 export type {
   LandingFeaturedSection,
-  LandingHighlight,
+  LandingHeroSignal,
+  LandingHomeSection,
   LandingPageRecord,
+  NavigationItem,
   PageIntro,
   ResumeAlternateLink,
+  SiteMetadataConfig,
   SiteSettingsRecord,
   SocialLink,
 } from "@/lib/site-content";
@@ -54,6 +53,7 @@ export type ProjectRecord = BaseRecord & {
   links: ContentLink[];
   images: string[];
   featured: boolean;
+  order?: number;
   startDate?: string;
   endDate?: string;
   link?: string;
@@ -72,6 +72,7 @@ export type ExperienceRecord = BaseRecord & {
   logo?: string;
   attachments: string[];
   links: ContentLink[];
+  order?: number;
 };
 
 export type EducationRecord = BaseRecord & {
@@ -165,20 +166,7 @@ export type CollectionMap = {
 
 export type CollectionId = keyof CollectionMap;
 
-type ApiPayload<T> = {
-  success?: boolean;
-  data?: T;
-};
-
-const COLLECTION_FALLBACKS = {
-  project: defaultProjects,
-  experience: defaultExperience,
-  education: defaultEducation,
-  skill: defaultSkills,
-  achievement: defaultAchievements,
-  cpProfile: defaultCpProfiles,
-  hackathon: defaultHackathons,
-} as const;
+type FeaturedCollectionId = "project" | "achievement";
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : "";
@@ -229,34 +217,24 @@ function asBadges(value: unknown): CPBadgeRecord[] {
   }
 
   return value.reduce<CPBadgeRecord[]>((badges, item) => {
-      if (!item || typeof item !== "object") {
-        return badges;
-      }
-
-      const badge = item as { label?: unknown; value?: unknown };
-      const label = asString(badge.label).trim();
-
-      if (!label) {
-        return badges;
-      }
-
-      badges.push({
-        label,
-        value: asString(badge.value).trim(),
-      });
-
+    if (!item || typeof item !== "object") {
       return badges;
-    }, []);
-}
+    }
 
-function asPageIntro(value: unknown): PageIntro {
-  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+    const badge = item as { label?: unknown; value?: unknown };
+    const label = asString(badge.label).trim();
 
-  return {
-    eyebrow: asString(record.eyebrow),
-    title: asString(record.title),
-    description: asString(record.description),
-  };
+    if (!label) {
+      return badges;
+    }
+
+    badges.push({
+      label,
+      value: asString(badge.value).trim(),
+    });
+
+    return badges;
+  }, []);
 }
 
 function asResumeLinks(value: unknown): ResumeAlternateLink[] {
@@ -313,12 +291,74 @@ function asSocialLinks(value: unknown): SocialLink[] {
   }, []);
 }
 
-function asLandingHighlights(value: unknown): LandingHighlight[] {
+function asNavigationItems(value: unknown): NavigationItem[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
-  return value.reduce<LandingHighlight[]>((items, item) => {
+  return value.reduce<NavigationItem[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const navigationItem = item as {
+      label?: unknown;
+      href?: unknown;
+      enabled?: unknown;
+    };
+    const href = asString(navigationItem.href).trim();
+
+    if (!href) {
+      return items;
+    }
+
+    items.push({
+      label: asString(navigationItem.label).trim() || "Link",
+      href,
+      enabled:
+        !Object.prototype.hasOwnProperty.call(navigationItem, "enabled") ||
+        navigationItem.enabled === true,
+    });
+
+    return items;
+  }, []);
+}
+
+function asSiteMetadata(value: unknown): SiteMetadataConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      description: fallbackSiteSettings.siteMetadata.description,
+      keywords: fallbackSiteSettings.siteMetadata.keywords,
+    };
+  }
+
+  const metadata = value as Record<string, unknown>;
+
+  return {
+    description: asString(metadata.description).trim() || fallbackSiteSettings.siteMetadata.description,
+    keywords: Array.isArray(metadata.keywords)
+      ? asStringArray(metadata.keywords)
+      : fallbackSiteSettings.siteMetadata.keywords,
+  };
+}
+
+function asPageIntro(value: unknown): PageIntro {
+  const record = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+
+  return {
+    eyebrow: asString(record.eyebrow),
+    title: asString(record.title),
+    description: asString(record.description),
+    path: asString(record.path),
+  };
+}
+
+function asLandingHighlights(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<LandingPageRecord["highlightCards"]>((items, item) => {
     if (!item || typeof item !== "object") {
       return items;
     }
@@ -369,6 +409,59 @@ function asFeaturedSections(value: unknown): LandingFeaturedSection[] {
   }, []);
 }
 
+function asHeroSignals(value: unknown): LandingHeroSignal[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<LandingHeroSignal[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const signal = item as { label?: unknown; value?: unknown };
+    const signalValue = asString(signal.value).trim();
+
+    if (!signalValue) {
+      return items;
+    }
+
+    items.push({
+      label: asString(signal.label).trim() || "Signal",
+      value: signalValue,
+    });
+
+    return items;
+  }, []);
+}
+
+function asHomeSections(value: unknown): LandingHomeSection[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.reduce<LandingHomeSection[]>((items, item) => {
+    if (!item || typeof item !== "object") {
+      return items;
+    }
+
+    const section = item as { id?: unknown; enabled?: unknown };
+    const id = asString(section.id).trim();
+
+    if (!LANDING_HOME_SECTION_IDS.includes(id as (typeof LANDING_HOME_SECTION_IDS)[number])) {
+      return items;
+    }
+
+    items.push({
+      id: id as LandingHomeSection["id"],
+      enabled:
+        !Object.prototype.hasOwnProperty.call(section, "enabled") || section.enabled === true,
+    });
+
+    return items;
+  }, []);
+}
+
 function asNumberMap(value: unknown) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {} as Record<string, number>;
@@ -393,7 +486,7 @@ function asStringMap(value: unknown) {
   );
 }
 
-function normalizeCollectionItem<K extends CollectionId>(collection: K, item: unknown): CollectionMap[K] {
+export function normalizeCollectionItem<K extends CollectionId>(collection: K, item: unknown): CollectionMap[K] {
   const record = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
 
   if (collection === "siteSettings") {
@@ -401,106 +494,110 @@ function normalizeCollectionItem<K extends CollectionId>(collection: K, item: un
       record.pageIntro && typeof record.pageIntro === "object"
         ? (record.pageIntro as Record<string, unknown>)
         : {};
+    const navigationItems = Array.isArray(record.navigationItems)
+      ? asNavigationItems(record.navigationItems)
+      : fallbackSiteSettings.navigationItems;
+
+    const pageIntro = Object.fromEntries(
+      SITE_PAGE_KEYS.map((key) => {
+        const nextIntro = asPageIntro(pageIntroRecord[key]);
+
+        return [
+          key,
+          {
+            ...fallbackSiteSettings.pageIntro[key],
+            ...nextIntro,
+            path: nextIntro.path || fallbackSiteSettings.pageIntro[key].path,
+          },
+        ];
+      })
+    ) as SiteSettingsRecord["pageIntro"];
 
     return {
       _id: asString(record._id),
       singletonKey: "site-settings",
-      name: asString(record.name) || defaultSiteSettings.name,
-      role: asString(record.role) || defaultSiteSettings.role,
-      location: asString(record.location) || defaultSiteSettings.location,
-      availability: asString(record.availability) || defaultSiteSettings.availability,
-      profileBadge: asString(record.profileBadge) || defaultSiteSettings.profileBadge,
+      name: asString(record.name) || fallbackSiteSettings.name,
+      role: asString(record.role) || fallbackSiteSettings.role,
+      location: asString(record.location) || fallbackSiteSettings.location,
+      availability: asString(record.availability) || fallbackSiteSettings.availability,
+      profileBadge: asString(record.profileBadge) || fallbackSiteSettings.profileBadge,
       profileImage: asString(record.profileImage),
-      profileImageAlt: asString(record.profileImageAlt) || defaultSiteSettings.profileImageAlt,
-      footerBlurb: asString(record.footerBlurb) || defaultSiteSettings.footerBlurb,
-      aboutParagraphs: asStringArray(record.aboutParagraphs).length
+      profileImageAlt: asString(record.profileImageAlt) || fallbackSiteSettings.profileImageAlt,
+      footerBlurb: asString(record.footerBlurb) || fallbackSiteSettings.footerBlurb,
+      aboutParagraphs: Array.isArray(record.aboutParagraphs)
         ? asStringArray(record.aboutParagraphs)
-        : defaultSiteSettings.aboutParagraphs,
+        : fallbackSiteSettings.aboutParagraphs,
       primaryResumeLabel:
-        asString(record.primaryResumeLabel) || defaultSiteSettings.primaryResumeLabel,
+        asString(record.primaryResumeLabel) || fallbackSiteSettings.primaryResumeLabel,
       primaryResumeViewHref: asString(record.primaryResumeViewHref),
       primaryResumeDownloadHref: asString(record.primaryResumeDownloadHref),
-      alternateResumeLinks: asResumeLinks(record.alternateResumeLinks),
-      socialLinks: asSocialLinks(record.socialLinks).length
+      alternateResumeLinks: Array.isArray(record.alternateResumeLinks)
+        ? asResumeLinks(record.alternateResumeLinks)
+        : fallbackSiteSettings.alternateResumeLinks,
+      socialLinks: Array.isArray(record.socialLinks)
         ? asSocialLinks(record.socialLinks)
-        : defaultSiteSettings.socialLinks,
-      pageIntro: {
-        about: {
-          ...defaultSiteSettings.pageIntro.about,
-          ...asPageIntro(pageIntroRecord.about),
-        },
-        projects: {
-          ...defaultSiteSettings.pageIntro.projects,
-          ...asPageIntro(pageIntroRecord.projects),
-        },
-        experience: {
-          ...defaultSiteSettings.pageIntro.experience,
-          ...asPageIntro(pageIntroRecord.experience),
-        },
-        skills: {
-          ...defaultSiteSettings.pageIntro.skills,
-          ...asPageIntro(pageIntroRecord.skills),
-        },
-        achievements: {
-          ...defaultSiteSettings.pageIntro.achievements,
-          ...asPageIntro(pageIntroRecord.achievements),
-        },
-        contact: {
-          ...defaultSiteSettings.pageIntro.contact,
-          ...asPageIntro(pageIntroRecord.contact),
-        },
-      },
+        : fallbackSiteSettings.socialLinks,
+      navigationItems: navigationItems.length > 0 ? navigationItems : fallbackSiteSettings.navigationItems,
+      siteMetadata: asSiteMetadata(record.siteMetadata),
+      pageIntro,
     } as CollectionMap[K];
   }
 
   if (collection === "landingPage") {
+    const homeSections = Array.isArray(record.homeSections)
+      ? asHomeSections(record.homeSections)
+      : fallbackLandingPage.homeSections;
+
     return {
       _id: asString(record._id),
       singletonKey: "landing-page",
-      heroEyebrow: asString(record.heroEyebrow) || defaultLandingPage.heroEyebrow,
-      heroTitle: asString(record.heroTitle) || defaultLandingPage.heroTitle,
-      heroSubtitle: asString(record.heroSubtitle) || defaultLandingPage.heroSubtitle,
-      heroSummary: asString(record.heroSummary) || defaultLandingPage.heroSummary,
-      primaryCtaLabel: asString(record.primaryCtaLabel) || defaultLandingPage.primaryCtaLabel,
-      primaryCtaHref: asString(record.primaryCtaHref) || defaultLandingPage.primaryCtaHref,
+      heroEyebrow: asString(record.heroEyebrow) || fallbackLandingPage.heroEyebrow,
+      heroTitle: asString(record.heroTitle) || fallbackLandingPage.heroTitle,
+      heroSubtitle: asString(record.heroSubtitle) || fallbackLandingPage.heroSubtitle,
+      heroSummary: asString(record.heroSummary) || fallbackLandingPage.heroSummary,
+      heroIntroLines: Array.isArray(record.heroIntroLines)
+        ? asStringArray(record.heroIntroLines)
+        : fallbackLandingPage.heroIntroLines,
+      heroSignals: Array.isArray(record.heroSignals)
+        ? asHeroSignals(record.heroSignals)
+        : fallbackLandingPage.heroSignals,
+      primaryCtaLabel: asString(record.primaryCtaLabel) || fallbackLandingPage.primaryCtaLabel,
+      primaryCtaHref: asString(record.primaryCtaHref) || fallbackLandingPage.primaryCtaHref,
       secondaryCtaLabel:
-        asString(record.secondaryCtaLabel) || defaultLandingPage.secondaryCtaLabel,
-      secondaryCtaHref: asString(record.secondaryCtaHref) || defaultLandingPage.secondaryCtaHref,
-      highlightCards: asLandingHighlights(record.highlightCards).length
+        asString(record.secondaryCtaLabel) || fallbackLandingPage.secondaryCtaLabel,
+      secondaryCtaHref: asString(record.secondaryCtaHref) || fallbackLandingPage.secondaryCtaHref,
+      highlightCards: Array.isArray(record.highlightCards)
         ? asLandingHighlights(record.highlightCards)
-        : defaultLandingPage.highlightCards,
-      projectsEyebrow: asString(record.projectsEyebrow) || defaultLandingPage.projectsEyebrow,
-      projectsTitle: asString(record.projectsTitle) || defaultLandingPage.projectsTitle,
+        : fallbackLandingPage.highlightCards,
+      projectsEyebrow: asString(record.projectsEyebrow) || fallbackLandingPage.projectsEyebrow,
+      projectsTitle: asString(record.projectsTitle) || fallbackLandingPage.projectsTitle,
       projectsDescription:
-        asString(record.projectsDescription) || defaultLandingPage.projectsDescription,
-      maxFeaturedProjects:
-        asNumber(record.maxFeaturedProjects) || defaultLandingPage.maxFeaturedProjects,
+        asString(record.projectsDescription) || fallbackLandingPage.projectsDescription,
+      maxFeaturedProjects: asNumber(record.maxFeaturedProjects) ?? fallbackLandingPage.maxFeaturedProjects,
       achievementsEyebrow:
-        asString(record.achievementsEyebrow) || defaultLandingPage.achievementsEyebrow,
+        asString(record.achievementsEyebrow) || fallbackLandingPage.achievementsEyebrow,
       achievementsTitle:
-        asString(record.achievementsTitle) || defaultLandingPage.achievementsTitle,
+        asString(record.achievementsTitle) || fallbackLandingPage.achievementsTitle,
       achievementsDescription:
-        asString(record.achievementsDescription) ||
-        defaultLandingPage.achievementsDescription,
+        asString(record.achievementsDescription) || fallbackLandingPage.achievementsDescription,
       maxFeaturedAchievements:
-        typeof record.maxFeaturedAchievements === "number"
-          ? record.maxFeaturedAchievements
-          : defaultLandingPage.maxFeaturedAchievements,
+        asNumber(record.maxFeaturedAchievements) ?? fallbackLandingPage.maxFeaturedAchievements,
       showAchievementsSection:
         typeof record.showAchievementsSection === "boolean"
           ? record.showAchievementsSection
-          : defaultLandingPage.showAchievementsSection,
-      exploreEyebrow: asString(record.exploreEyebrow) || defaultLandingPage.exploreEyebrow,
-      exploreTitle: asString(record.exploreTitle) || defaultLandingPage.exploreTitle,
+          : fallbackLandingPage.showAchievementsSection,
+      exploreEyebrow: asString(record.exploreEyebrow) || fallbackLandingPage.exploreEyebrow,
+      exploreTitle: asString(record.exploreTitle) || fallbackLandingPage.exploreTitle,
       exploreDescription:
-        asString(record.exploreDescription) || defaultLandingPage.exploreDescription,
-      featuredSections: asFeaturedSections(record.featuredSections).length
+        asString(record.exploreDescription) || fallbackLandingPage.exploreDescription,
+      featuredSections: Array.isArray(record.featuredSections)
         ? asFeaturedSections(record.featuredSections)
-        : defaultLandingPage.featuredSections,
-      contactEyebrow: asString(record.contactEyebrow) || defaultLandingPage.contactEyebrow,
-      contactTitle: asString(record.contactTitle) || defaultLandingPage.contactTitle,
+        : fallbackLandingPage.featuredSections,
+      homeSections: homeSections.length > 0 ? homeSections : fallbackLandingPage.homeSections,
+      contactEyebrow: asString(record.contactEyebrow) || fallbackLandingPage.contactEyebrow,
+      contactTitle: asString(record.contactTitle) || fallbackLandingPage.contactTitle,
       contactDescription:
-        asString(record.contactDescription) || defaultLandingPage.contactDescription,
+        asString(record.contactDescription) || fallbackLandingPage.contactDescription,
     } as CollectionMap[K];
   }
 
@@ -515,6 +612,7 @@ function normalizeCollectionItem<K extends CollectionId>(collection: K, item: un
       links: asLinks(record.links),
       images: asStringArray(record.images),
       featured: asBoolean(record.featured),
+      order: asNumber(record.order),
       startDate: asString(record.startDate) || undefined,
       endDate: asString(record.endDate) || undefined,
       link: asString(record.link) || undefined,
@@ -538,6 +636,7 @@ function normalizeCollectionItem<K extends CollectionId>(collection: K, item: un
       logo: asString(record.logo) || undefined,
       attachments: asStringArray(record.attachments),
       links: asLinks(record.links),
+      order: asNumber(record.order),
     } as CollectionMap[K];
   }
 
@@ -637,137 +736,58 @@ function normalizeCollectionItem<K extends CollectionId>(collection: K, item: un
   } as CollectionMap[K];
 }
 
-function normalizeCollectionItems<K extends CollectionId>(collection: K, items: unknown[]) {
+export function normalizeCollectionItems<K extends CollectionId>(collection: K, items: unknown[]) {
   return items.map((item) => normalizeCollectionItem(collection, item));
 }
 
-function getCollectionFallback<K extends CollectionId>(collection: K) {
-  return (COLLECTION_FALLBACKS as Partial<Record<CollectionId, readonly unknown[]>>)[collection] ?? [];
-}
-
-function getFallbackBaseUrl() {
-  const value = process.env.NEXT_PUBLIC_SITE_URL || process.env.SITE_URL || process.env.VERCEL_URL;
-
-  if (!value) {
-    return null;
-  }
-
-  return /^https?:\/\//.test(value) ? value : `https://${value}`;
-}
-
-async function resolveBaseUrl() {
+const getCollectionDataCached = cache(async (collection: CollectionId) => {
   try {
-    const requestHeaders = await headers();
-    const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-
-    if (host) {
-      const protocol =
-        requestHeaders.get("x-forwarded-proto") ??
-        (host.includes("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
-
-      return `${protocol}://${host}`;
-    }
-  } catch {
-    // Request headers only exist in request-scoped server contexts.
-  }
-
-  const fallback = getFallbackBaseUrl();
-
-  if (fallback) {
-    return fallback;
-  }
-
-  throw new Error("Unable to resolve the application base URL for content requests.");
-}
-
-async function fetchContent<T>(path: string) {
-  const baseUrl = await resolveBaseUrl();
-  const response = await fetch(`${baseUrl}${path}`, { cache: "no-store" });
-
-  if (!response.ok) {
-    return null;
-  }
-
-  return (await response.json()) as ApiPayload<T>;
-}
-
-export async function getData<K extends CollectionId>(collection: K): Promise<CollectionMap[K][]> {
-  try {
-    const payload = await fetchContent<CollectionMap[K][]>(`/api/content/${collection}`);
-
-    if (!payload?.success || !Array.isArray(payload.data)) {
-      return normalizeCollectionItems(collection, await listContentDocuments(collection));
-    }
-
-    return normalizeCollectionItems(collection, payload.data);
+    return normalizeCollectionItems(collection, await listContentDocuments(collection));
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unable to resolve the application base URL")) {
-      try {
-        return normalizeCollectionItems(collection, await listContentDocuments(collection));
-      } catch {
-        return normalizeCollectionItems(collection, [...getCollectionFallback(collection)]);
-      }
-    }
-
     console.error(`Failed to fetch ${collection} content`, error);
-    return normalizeCollectionItems(collection, [...getCollectionFallback(collection)]);
+    return [];
   }
-}
+});
 
-export async function getItem<K extends CollectionId>(collection: K, id: string): Promise<CollectionMap[K] | null> {
+const getFeaturedCollectionDataCached = cache(async (collection: FeaturedCollectionId, limit: number) => {
   try {
-    const payload = await fetchContent<CollectionMap[K]>(`/api/content/${collection}/${id}`);
+    return normalizeCollectionItems(
+      collection,
+      await listFeaturedContentDocuments(collection, limit)
+    );
+  } catch (error) {
+    console.error(`Failed to fetch featured ${collection} content`, error);
+    return [];
+  }
+});
 
-    if (payload?.success && payload.data) {
-      return normalizeCollectionItem(collection, payload.data);
-    }
-
+const getCollectionItemCached = cache(async (collection: CollectionId, id: string) => {
+  try {
     const item = await getContentDocumentById(collection, id);
     return item ? normalizeCollectionItem(collection, item) : null;
   } catch (error) {
-    if (error instanceof Error && error.message.includes("Unable to resolve the application base URL")) {
-      try {
-        const item = await getContentDocumentById(collection, id);
-        if (item) {
-          return normalizeCollectionItem(collection, item);
-        }
-      } catch {
-        const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
-          return (
-            item &&
-            typeof item === "object" &&
-            "_id" in item &&
-            String((item as { _id?: unknown })._id) === id
-          );
-        });
-
-        return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
-      }
-
-      const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
-        return (
-          item &&
-          typeof item === "object" &&
-          "_id" in item &&
-          String((item as { _id?: unknown })._id) === id
-        );
-      });
-
-      return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
-    }
-
     console.error(`Failed to fetch ${collection} item`, error);
-    const fallbackItem = [...getCollectionFallback(collection)].find((item) => {
-      return (
-        item &&
-        typeof item === "object" &&
-        "_id" in item &&
-        String((item as { _id?: unknown })._id) === id
-      );
-    });
-
-    return fallbackItem ? normalizeCollectionItem(collection, fallbackItem) : null;
+    return null;
   }
+});
+
+export async function getData<K extends CollectionId>(collection: K): Promise<CollectionMap[K][]> {
+  return (await getCollectionDataCached(collection)) as CollectionMap[K][];
+}
+
+export async function getFeaturedData<K extends FeaturedCollectionId>(
+  collection: K,
+  limit: number
+): Promise<CollectionMap[K][]> {
+  if (limit <= 0) {
+    return [];
+  }
+
+  return (await getFeaturedCollectionDataCached(collection, limit)) as CollectionMap[K][];
+}
+
+export async function getItem<K extends CollectionId>(collection: K, id: string): Promise<CollectionMap[K] | null> {
+  return (await getCollectionItemCached(collection, id)) as CollectionMap[K] | null;
 }
 
 export const getSiteSettings = cache(async (): Promise<SiteSettingsRecord> => {

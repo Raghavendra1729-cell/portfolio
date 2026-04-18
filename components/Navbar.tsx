@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { SECTION_TRANSITION } from "@/lib/motion";
-import { publicNavItems } from "@/lib/site-config";
 import type { SiteSettingsRecord } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +22,7 @@ export default function Navbar({ siteSettings }: { siteSettings: SiteSettingsRec
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const reducedMotion = useReducedMotion();
+  const navigationItems = siteSettings.navigationItems.filter((item) => item.enabled);
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 18);
@@ -82,7 +82,7 @@ export default function Navbar({ siteSettings }: { siteSettings: SiteSettingsRec
           </Link>
 
           <nav aria-label="Primary" className="hidden items-center gap-2 lg:flex">
-            {publicNavItems.map((item) => {
+            {navigationItems.map((item) => {
               const isActive = isActivePath(pathname, item.href);
 
               return (
@@ -151,7 +151,7 @@ export default function Navbar({ siteSettings }: { siteSettings: SiteSettingsRec
                 aria-label="Mobile navigation"
               >
                 <div className="grid gap-2">
-                  {publicNavItems.map((item, index) => {
+                  {navigationItems.map((item, index) => {
                     const isActive = isActivePath(pathname, item.href);
 
                     return (
